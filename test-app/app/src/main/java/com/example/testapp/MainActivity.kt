@@ -3,6 +3,9 @@ package com.example.testapp
 import android.os.Bundle
 import android.app.Activity
 import android.widget.TextView
+import okhttp3.CertificatePinner
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 class MainActivity : Activity() {
 
@@ -42,7 +45,7 @@ class MainActivity : Activity() {
         // Example of insecure HTTP URL
         fetchDataFromInsecureUrl(INSECURE_API_URL)
 
-        // Example with certificate pinning (simulated - should not trigger warning)
+        // Example with certificate pinning (should NOT trigger warning)
         configureSecureClient()
     }
 
@@ -64,9 +67,17 @@ class MainActivity : Activity() {
     }
 
     private fun configureSecureClient() {
-        // Example of certificatePinner usage - should NOT trigger warning
-        // In real code: val certificatePinner = CertificatePinner.Builder()...
-        val hasCertificatePinning = true // Simulated check
+        // Real example of certificate pinning - should NOT trigger warning
+        val certificatePinner = CertificatePinner.Builder()
+            .add("example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+            .add("api.example.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
+            .build()
+
+        val client = OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
 
     // Additional method with another API key pattern
