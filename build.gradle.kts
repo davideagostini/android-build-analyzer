@@ -91,9 +91,13 @@ publishing {
             val releasesUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
             val snapshotsUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
             url = uri(if (version.toString().endsWith("-SNAPSHOT")) snapshotsUrl else releasesUrl)
-            credentials {
-                username = System.getenv("ORG_GRADLE_PROJECT_NEXUS_USERNAME")
-                password = System.getenv("ORG_GRADLE_PROJECT_NEXUS_PASSWORD")
+            val nexusUser = System.getenv("ORG_GRADLE_PROJECT_NEXUS_USERNAME")
+            val nexusPass = System.getenv("ORG_GRADLE_PROJECT_NEXUS_PASSWORD")
+            if (nexusUser != null && nexusPass != null) {
+                credentials {
+                    username = nexusUser
+                    password = nexusPass
+                }
             }
         }
     }
