@@ -1,6 +1,7 @@
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
+    id("com.vanniktech.maven.publish") version "0.28.0"
 }
 
 group = "com.davideagostini"
@@ -12,7 +13,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("com.android.tools.build:gradle:8.2.2")
     implementation(gradleApi())
     implementation(localGroovy())
