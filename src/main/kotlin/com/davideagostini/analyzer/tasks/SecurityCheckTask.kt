@@ -270,7 +270,7 @@ open class SecurityCheckTask : DefaultTask() {
                     SecurityFinding(
                         type = SecurityIssueType.MANIFEST_DEBUGGABLE,
                         severity = Severity.HIGH,
-                        message = "Manifest has android:debuggable=\"true\" which allows debugging the app.",
+                        message = "Manifest has android:debuggable=\"true\" which allows debugging the app.\nSuggested fix:\nRemove android:debuggable attribute or set to \"false\" in AndroidManifest.xml",
                         location = "AndroidManifest.xml (<application>)",
                         buildType = "all"
                     )
@@ -284,7 +284,7 @@ open class SecurityCheckTask : DefaultTask() {
                         SecurityFinding(
                             type = SecurityIssueType.ALLOW_BACKUP_ENABLED,
                             severity = Severity.MEDIUM,
-                            message = "Manifest has android:allowBackup=\"true\" which allows app data backup.",
+                            message = "Manifest has android:allowBackup=\"true\" which allows app data backup.\nSuggested fix:\nSet android:allowBackup=\"false\" in AndroidManifest.xml or use android:fullBackupContent=\"@xml/backup_rules\" to control what gets backed up",
                             location = "AndroidManifest.xml (<application>)",
                             buildType = "all"
                         )
@@ -375,11 +375,16 @@ open class SecurityCheckTask : DefaultTask() {
             if (content.contains("android.permission.$permission")) {
                 // Determine severity: HIGH for high-risk permissions, MEDIUM for others
                 val severity = if (permission in HIGH_RISK_PERMISSIONS) Severity.HIGH else Severity.MEDIUM
+                val fixSuggestion = if (permission in HIGH_RISK_PERMISSIONS) {
+                    "\nThis is a high-risk permission. Ensure you have a legitimate need and proper user consent flow."
+                } else {
+                    "\nConsider if this permission is absolutely necessary. Request at runtime on Android 6.0+."
+                }
                 findings.add(
                     SecurityFinding(
                         type = SecurityIssueType.DANGEROUS_PERMISSION,
                         severity = severity,
-                        message = "Uses dangerous permission: $permission - Review if absolutely necessary",
+                        message = "Uses dangerous permission: $permission - Review if absolutely necessary$fixSuggestion",
                         location = "AndroidManifest.xml (uses-permission)",
                         buildType = "all"
                     )
@@ -449,7 +454,7 @@ open class SecurityCheckTask : DefaultTask() {
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_SERVICE,
                         severity = Severity.MEDIUM,
-                        message = "Exported service '$componentName' has no permission protection",
+                        message = "Exported service '$componentName' has no permission protection\nSuggested fix:\nAdd android:permission=\"your.package.permission.NAME\" or set android:exported=\"false\" if not needed",
                         location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
@@ -472,7 +477,7 @@ open class SecurityCheckTask : DefaultTask() {
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_RECEIVER,
                         severity = Severity.MEDIUM,
-                        message = "Exported broadcast receiver '$componentName' has no permission protection",
+                        message = "Exported broadcast receiver '$componentName' has no permission protection\nSuggested fix:\nAdd android:permission=\"your.package.permission.NAME\" or set android:exported=\"false\" if not needed",
                         location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
@@ -496,7 +501,7 @@ open class SecurityCheckTask : DefaultTask() {
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_PROVIDER,
                         severity = Severity.HIGH,
-                        message = "Exported content provider '$componentName' has no permission protection",
+                        message = "Exported content provider '$componentName' has no permission protection\nSuggested fix:\nAdd android:permission=\"your.package.permission.NAME\" or android:grantUriPermissions=\"true\" or set android:exported=\"false\" if not needed",
                         location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
@@ -566,11 +571,19 @@ open class SecurityCheckTask : DefaultTask() {
         val hasNetworkSecurityConfig = networkSecurityConfigPattern.containsMatchIn(content)
 
         if (!hasNetworkSecurityConfig) {
+            val suggestedNetworkSecurityConfig = """<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>"""
             findings.add(
                 SecurityFinding(
                     type = SecurityIssueType.MISSING_NETWORK_SECURITY_CONFIG,
                     severity = Severity.MEDIUM,
-                    message = "Missing Network Security Config - consider adding one to enforce HTTPS",
+                    message = "Missing Network Security Config - consider adding one to enforce HTTPS\nSuggested fix:\n1. Create res/xml/network_security_config.xml:\n$suggestedNetworkSecurityConfig\n\n2. Add to AndroidManifest.xml:\nandroid:networkSecurityConfig=\"@xml/network_security_config\"",
                     location = "AndroidManifest.xml (<application>)",
                     buildType = "all"
                 )
@@ -585,7 +598,7 @@ open class SecurityCheckTask : DefaultTask() {
                 SecurityFinding(
                     type = SecurityIssueType.CLEAR_TEXT_HTTP_URL,
                     severity = Severity.MEDIUM,
-                    message = "Cleartext traffic (HTTP) is allowed - this can be intercepted",
+                    message = "Cleartext traffic (HTTP) is allowed - this can be intercepted\nSuggested fix:\nSet android:usesCleartextTraffic=\"false\" in AndroidManifest.xml or create a network security config to enforce HTTPS",
                     location = "AndroidManifest.xml (<application>)",
                     buildType = "all"
                 )
@@ -628,11 +641,12 @@ open class SecurityCheckTask : DefaultTask() {
                             val url = match.value
                             // Flag insecure HTTP URLs (not HTTPS)
                             if (url.startsWith("http://")) {
+                                val secureUrl = url.replace("http://", "https://")
                                 findings.add(
                                     SecurityFinding(
                                         type = SecurityIssueType.INSECURE_HTTP_URL,
                                         severity = Severity.MEDIUM,
-                                        message = "Insecure HTTP URL found: $url",
+                                        message = "Insecure HTTP URL found: $url\nSuggested fix: Replace with HTTPS URL:\n$secureUrl",
                                         location = "${file.relativeTo(project.rootDir)}",
                                         buildType = "all"
                                     )
@@ -814,13 +828,23 @@ open class SecurityCheckTask : DefaultTask() {
                     val proguardRulePattern = Regex("""^\s*-(dontwarn|keep|warn)\s+.*\b$library\b""", RegexOption.MULTILINE)
                     val hasRule = proguardRulePattern.containsMatchIn(rulesContent)
 
+                    // Get suggested rules for this library
+                    val suggestedRule = when (library) {
+                        "okhttp" -> "-dontwarn okhttp3.**\n-dontwarn okio.**"
+                        "retrofit" -> "-dontwarn retrofit2.**\n-keepattributes Signature"
+                        "gson" -> "-keepattributes Signature\n-keep class com.google.gson.** { *; }"
+                        "rxjava" -> "-dontwarn rxjava.**\n-dontwarn rxplugins.**"
+                        "commons-io" -> "-dontwarn org.apache.commons.io.**"
+                        else -> ""
+                    }
+
                     // If library is used but no proper rule exists, add a finding
                     if (hasLibrary && !hasRule) {
                         findings.add(
                             SecurityFinding(
                                 type = SecurityIssueType.MISSING_LIBRARY_RULES,
                                 severity = Severity.LOW,
-                                message = "Library '$library' may need additional rules",
+                                message = "Library '$library' may need additional rules\nSuggested fix:\n$suggestedRule",
                                 location = rulesFile.relativeTo(project.rootDir).path,
                                 buildType = "release"
                             )
@@ -837,23 +861,52 @@ open class SecurityCheckTask : DefaultTask() {
                 val hasKeepClassMembers = keepClassMembersPattern.containsMatchIn(rulesContent)
 
                 if (!hasKeepClassMembers) {
+                    val suggestedKeepClassMembers = """
+# Keep class members (for model classes with serialization)
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keepclassmembers class com.example.yourpackage.model.** {
+    *;
+}
+                    """.trimIndent()
                     findings.add(
                         SecurityFinding(
                             type = SecurityIssueType.NO_KEEP_CLASS_MEMBERS,
                             severity = Severity.LOW,
-                            message = "No -keepclassmembers rules found - consider adding for model classes",
+                            message = "No -keepclassmembers rules found - consider adding for model classes\nSuggested fix:\n$suggestedKeepClassMembers",
                             location = rulesFile.relativeTo(project.rootDir).path,
                             buildType = "release"
                         )
                     )
                 }
             } else {
-                // No ProGuard rules file found
+                // No ProGuard rules file found - suggest basic template
+                val suggestedProGuardRules = """
+# Android ProGuard Rules
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Keep application class
+-keep class your.app.package.MyApplication { *; }
+
+# Keep model classes
+-keep class your.app.package.model.** { *; }
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Gson
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.** { *; }
+                """.trimIndent()
                 findings.add(
                     SecurityFinding(
                         type = SecurityIssueType.MISSING_PROGUARD_RULES,
                         severity = Severity.MEDIUM,
-                        message = "ProGuard rules file not found - create one for better obfuscation",
+                        message = "ProGuard rules file not found - create one for better obfuscation\nSuggested fix:\nCreate proguard-rules.pro with:\n$suggestedProGuardRules",
                         location = "proguard-rules.pro",
                         buildType = "release"
                     )
