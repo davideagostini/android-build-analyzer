@@ -1,8 +1,7 @@
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
-    `maven-publish`
-    signing
+    id("com.gradle.plugin-publish") version "1.2.1"
 }
 
 group = "com.davideagostini"
@@ -46,73 +45,10 @@ gradlePlugin {
     }
 }
 
-// Maven Central Publishing Configuration
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            groupId = group.toString()
-            artifactId = "android-build-analyzer"
-            version = version.toString()
-
-            artifact(tasks.named("jar"))
-
-            pom {
-                name.set("Android Build Analyzer")
-                description.set("Gradle plugin for Android security and performance analysis")
-                url.set("https://github.com/davideagostini/android-build-analyzer")
-
-                licenses {
-                    license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
-
-                developers {
-                    developer {
-                        id.set("davideagostini")
-                        name.set("Davide Agostini")
-                        email.set("davide@example.com")
-                    }
-                }
-
-                scm {
-                    connection.set("scm:git:https://github.com/davideagostini/android-build-analyzer.git")
-                    developerConnection.set("scm:git:git@github.com:davideagostini/android-build-analyzer.git")
-                    url.set("https://github.com/davideagostini/android-build-analyzer")
-                }
-            }
-        }
-
-        // Plugin marker for Gradle Plugin Portal
-        create<MavenPublication>("pluginMarker") {
-            groupId = group.toString()
-            artifactId = "com.davideagostini.analyzer.gradle.plugin"
-            version = version.toString()
-
-            artifact(tasks.named("jar"))
-        }
+// Gradle Plugin Portal Publishing
+gradlePlugin {
+    portal {
+        websiteUrl.set("https://github.com/davideagostini/android-build-analyzer")
+        vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
     }
-
-    repositories {
-        maven {
-            name = "sonatype"
-            val releasesUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-            val snapshotsUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-            url = uri(if (version.toString().endsWith("-SNAPSHOT")) snapshotsUrl else releasesUrl)
-            val nexusUser = System.getenv("ORG_GRADLE_PROJECT_NEXUS_USERNAME")
-            val nexusPass = System.getenv("ORG_GRADLE_PROJECT_NEXUS_PASSWORD")
-            if (nexusUser != null && nexusPass != null) {
-                credentials {
-                    username = nexusUser
-                    password = nexusPass
-                }
-            }
-        }
-    }
-}
-
-// Signing configuration (for release builds)
-signing {
-    sign(publishing.publications["mavenJava"])
 }
