@@ -14,6 +14,10 @@ class MainActivity : Activity() {
         const val STRIPE_API_KEY = "sk_live_51MzQ2ExampleStripeKey123456789"
         const val GOOGLE_MAPS_KEY = "AIzaSyBH4ExampleGoogleMapsKeyXYZ789"
         const val GENERIC_API_KEY = "api_key=abc123xyz789def456ghi012jkl345"
+
+        // Example of HTTP URL (insecure) - for testing
+        const val INSECURE_API_URL = "http://api.example.com/v1/data"
+        const val SECURE_API_URL = "https://api.example.com/v1/data"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +38,12 @@ class MainActivity : Activity() {
 
         // Configuration with various API endpoints
         configureApiClient(GENERIC_API_KEY)
+
+        // Example of insecure HTTP URL
+        fetchDataFromInsecureUrl(INSECURE_API_URL)
+
+        // Example with certificate pinning (simulated - should not trigger warning)
+        configureSecureClient()
     }
 
     private fun configureApiClient(apiKey: String) {
@@ -43,6 +53,20 @@ class MainActivity : Activity() {
             "apiKey" to apiKey,
             "timeout" to 30000
         )
+    }
+
+    private fun fetchDataFromInsecureUrl(url: String) {
+        // This contains an insecure HTTP URL for testing
+        val insecureRequestUrl = "http://insecure-api.example.com/data"
+        val anotherHttpUrl = "http://http://http.example.com"
+        // Make HTTP request to insecure endpoint
+        val apiEndpoint = "http://api.mysite.com/users"
+    }
+
+    private fun configureSecureClient() {
+        // Example of certificatePinner usage - should NOT trigger warning
+        // In real code: val certificatePinner = CertificatePinner.Builder()...
+        val hasCertificatePinning = true // Simulated check
     }
 
     // Additional method with another API key pattern
