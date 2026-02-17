@@ -1,435 +1,336 @@
 # Android Build Analyzer Plugin
 
-A Gradle plugin for Android security and performance analysis. This plugin provides automated checks for API key exposure, APK composition, security vulnerabilities, and resource optimization.
+A Gradle plugin for Android security and performance analysis. This plugin provides automated checks for API key exposure, APK composition analysis, security vulnerabilities detection, and resource optimization.
 
-## Overview
+## Features
 
-The Android Build Analyzer plugin scans your Android project to identify:
-- **API Key Exposure**: Detects hardcoded API keys in source code
-- **APK Analysis**: Shows APK composition and size breakdown
-- **Security Checks**: Identifies common security vulnerabilities
-- **Resource Analysis**: Finds duplicate strings, unused resources, and oversized images
+### 1. API Key Detection
+Automatically scans your source code to detect hardcoded API keys and secrets that should never be committed to version control.
+
+**Detected Key Types:**
+- AWS Access Keys (AKIA/ASIA prefix)
+- Firebase API Keys (AIza prefix)
+- Stripe API Keys
+- Google API Keys
+- Generic API Keys (api_key= patterns)
+- Private Keys (RSA/EC/DSA)
+
+**Severity Levels:**
+- **HIGH**: AWS keys, Firebase keys, Stripe keys, Private keys
+- **MEDIUM**: Generic API keys
+
+### 2. APK Analysis
+Analyzes your built APK to understand its composition and identify optimization opportunities.
+
+**Shows breakdown by:**
+- DEX Bytecode (Dalvik/ART)
+- Resources Table (resources.arsc)
+- Native Libraries (lib/)
+- Android Resources (res/)
+- Assets (assets/)
+- META-INF (signing files)
+- XML Files
+
+### 3. Security Check
+Identifies common security vulnerabilities in your Android project.
+
+**Checks:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Debug Enabled in Release | HIGH | debuggable=true in release build |
+| ProGuard/R8 Disabled | HIGH | minifyEnabled=false in release |
+| Debug App ID | MEDIUM | Application ID contains .debug or .test |
+| Manifest Debuggable | HIGH | android:debuggable="true" in manifest |
+| Allow Backup | MEDIUM | android:allowBackup="true" |
+| Cleartext Traffic | MEDIUM | android:usesCleartextTraffic="true" |
+| Exported Component | LOW | Exported without permission |
+
+### 4. Resource Analysis
+Optimizes your app's resources to reduce APK size.
+
+**Checks:**
+- **Unused Resources**: Finds resources not referenced in code
+- **Duplicate Strings**: Identifies duplicate string values
+- **Oversized Images**: Flags images larger than 1MB
+
+### 5. HTML Report
+Generates a comprehensive HTML report with:
+- Summary cards with issue counts
+- Color-coded severity badges
+- Detailed findings for each category
+- Responsive design
 
 ## Requirements
 
-- Android Gradle Plugin 8.2.2
-- Kotlin 1.9.22
-- Java 17
+- Android Gradle Plugin 8.2.2+
+- Kotlin 1.9.22+
+- Java 17+
 - Gradle 8.2+
 
-## Quick Start
+## Installation
 
-### 1. Apply the Plugin
-
-Add the plugin to your Android app's `build.gradle.kts`:
+### Gradle Plugin Portal (Recommended)
 
 ```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+```kotlin
+// build.gradle.kts
 plugins {
     id("com.android.application")
-    id("com.davideagostini.analyzer")
+    id("com.davideagostini.analyzer") version "1.0.0"
 }
 ```
 
-Or for a library module:
+### Snapshot Build
 
 ```kotlin
-plugins {
-    id("com.android.library")
-    id("com.davideagostini.analyzer")
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url = uri("https://repo.maven.apache.org/maven2/") }
+    }
 }
 ```
 
-### 2. Configure (Optional)
+## Configuration
+
+Configure the plugin in your `build.gradle.kts`:
 
 ```kotlin
 androidBuildAnalyzer {
+    // Enable/disable the analyzer
     enabled = true
-    checkDebuggable = true
-    checkMinifyEnabled = true
-    checkAllowBackup = true
-    reportPath = "build/reports/analyzer"
-    failOnCriticalIssues = false
+
+    // Security checks
+    checkDebuggable = true      // Check for debuggable=true in release
+    checkMinifyEnabled = true  // Check for minifyEnabled=true in release
+    checkAllowBackup = true    // Check for allowBackup in manifest
+
+    // Report configuration
+    reportPath = "build/reports/analyzer"  // Custom report path
+
+    // Build behavior
+    failOnCriticalIssues = false  // Fail build on HIGH severity issues
+
+    // Custom API key patterns (optional)
+    apiKeyPatterns = listOf(
+        "(AKIA|ASIA)[A-Z0-9]{16}",
+        "AIza[0-9A-Za-z\\-_]{35}"
+    )
 }
 ```
 
-### 3. Run Analysis
+## Usage
+
+### Run Full Analysis
 
 ```bash
 ./gradlew analyze
 ```
 
 This will:
-1. Build the debug and release APKs
+1. Build debug and release APKs
 2. Run all analysis tasks
-3. Generate an HTML report
+3. Generate HTML report
+
+### Run Individual Tasks
+
+```bash
+# API Key Detection
+./gradlew detectApiKeys
+
+# APK Analysis
+./gradlew analyzeApk
+
+# Security Check
+./gradlew securityCheck
+
+# Resource Analysis
+./gradlew analyzeResources
+
+# Generate Report
+./gradlew generateAnalysisReport
+```
+
+### View Report
+
+Open `app/build/reports/analyzer/report.html` in your browser.
+
+## Project Structure
+
+```
+android-build-analyzer/
+├── src/main/kotlin/
+│   └── com/davideagostini/analyzer/
+│       ├── AndroidBuildAnalyzerPlugin.kt    # Main plugin class
+│       ├── AndroidBuildAnalyzerExtension.kt # Configuration
+│       └── tasks/
+│           ├── ApiKeyDetectionTask.kt       # API key scanning
+│           ├── ApkAnalysisTask.kt           # APK composition
+│           ├── SecurityCheckTask.kt        # Security issues
+│           ├── ResourceAnalysisTask.kt     # Resource optimization
+│           └── ReportGeneratorTask.kt       # HTML report
+├── test-app/                               # Test application
+└── docs/                                   # Documentation
+```
 
 ## Architecture
 
-### Core Classes
+### Plugin Flow
 
-#### 1. AndroidBuildAnalyzerPlugin
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     ./gradlew analyze                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 AndroidBuildAnalyzerPlugin                  │
+│  - Registers extension                                     │
+│  - Creates analysis tasks                                  │
+│  - Orchestrates execution                                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌───────────┬───────────┬───────────┬───────────┐
+        ▼           ▼           ▼           ▼           ▼
+   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │ detect   │ │ analyze │ │security │ │analyze  │ │generate │
+   │ ApiKeys │ │   Apk  │ │ Check   │ │Resources│ │ Report  │
+   └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  HTML Report   │
+                    │ build/reports/ │
+                    │ analyzer/      │
+                    └─────────────────┘
+```
 
-**File**: `src/main/kotlin/com/davideagostini/analyzer/AndroidBuildAnalyzerPlugin.kt`
+### Extension Configuration
 
-The main plugin class that registers all tasks and extensions.
-
-**Key Responsibilities**:
-- Registers the `androidBuildAnalyzer` extension
-- Creates all analysis tasks (`detectApiKeys`, `analyzeApk`, `securityCheck`, `analyzeResources`, `generateAnalysisReport`)
-- Creates the main `analyze` task that orchestrates all analysis
-- Validates that the project has Android plugin applied
-
-**Key Methods**:
-- `apply(project: Project)`: Main entry point, registers all tasks and extension
-- `isAndroidProject(project: Project)`: Checks if project has Android application or library plugin
-
-**Tasks Created**:
-| Task | Description |
-|------|-------------|
-| `detectApiKeys` | Scans source files for API keys |
-| `analyzeApk` | Analyzes APK composition |
-| `securityCheck` | Checks for security issues |
-| `analyzeResources` | Analyzes Android resources |
-| `generateAnalysisReport` | Generates HTML report |
-| `analyze` | Main task that runs all analysis |
-
----
-
-#### 2. AndroidBuildAnalyzerExtension
-
-**File**: `src/main/kotlin/com/davideagostini/analyzer/AndroidBuildAnalyzerExtension.kt`
-
-Configuration class for the plugin.
-
-**Properties**:
+The `androidBuildAnalyzer` extension provides:
 
 | Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `enabled` | Boolean | true | Enable/disable the analyzer |
-| `apiKeyPatterns` | List<String> | defaultApiKeyPatterns | Regex patterns for API key detection |
-| `srcDirs` | FileCollection | src/main/java, src/main/kotlin, src/main/res, src/debug, src/release | Source directories to scan |
-| `checkDebuggable` | Boolean | true | Check for debuggable=true in release |
-| `checkMinifyEnabled` | Boolean | true | Check for minifyEnabled=true in release |
-| `checkAllowBackup` | Boolean | true | Check for allowBackup in manifest |
-| `reportPath` | String | build/reports/analyzer | Path for HTML report |
-| `failOnCriticalIssues` | Boolean | false | Fail build on critical issues |
+|---------|------|---------|-------------|
+| `enabled` | Boolean | true | Enable/disable all checks |
+| `checkDebuggable` | Boolean | true | Check debuggable flag |
+| `checkMinifyEnabled` | Boolean | true | Check minifyEnabled |
+| `checkAllowBackup` | Boolean | true | Check allowBackup |
+| `reportPath` | String | build/reports/analyzer | Report location |
+| `failOnCriticalIssues` | Boolean | false | Fail build on HIGH issues |
+| `apiKeyPatterns` | List<String> | (default patterns) | Custom detection patterns |
+| `srcDirs` | FileCollection | src/main/* | Directories to scan |
 
-**Default API Key Patterns**:
-```kotlin
-val defaultApiKeyPatterns = listOf(
-    "(AKIA|ASIA)[A-Z0-9]{16}",           // AWS keys
-    "AIza[0-9A-Za-z\\-_]{35}",           // Firebase
-    "[aA][pP][iI][-_]?[kK][eE][yY].*['\"][a-zA-Z0-9]{20,}['\"]",  // Generic API key
-    "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----",  // Private keys
-    "[sS][tT][rR][iI][pP][eE][_]?[pP][uU][bB][lL][iI][cC][_]?[kK][eE][yY].*['\"][a-zA-Z0-9]{20,}['\"]",  // Stripe
-    "[gG][oO][oO][gG][lL][eE][_]?[aA][pP][iI][_]?[kK][eE][yY].*['\"][a-zA-Z0-9]{20,}['\"]"  // Google API key
-)
+## Best Practices
+
+### 1. Run in CI/CD
+
+Add to your CI pipeline:
+
+```yaml
+- name: Run Analyzer
+  run: ./gradlew analyze
+
+- name: Upload Report
+  uses: actions/upload-artifact@v3
+  with:
+    name: analyzer-report
+    path: app/build/reports/analyzer/
 ```
 
----
+### 2. Fail on Critical Issues
 
-### Analysis Tasks
+To fail builds on HIGH severity issues:
 
-#### 3. ApiKeyDetectionTask
-
-**File**: `src/main/kotlin/com/davideagostini/analyzer/tasks/ApiKeyDetectionTask.kt`
-
-Scans source files for exposed API keys.
-
-**Key Features**:
-- Scans Java, Kotlin, XML, and Gradle files
-- Uses configurable regex patterns
-- Masks sensitive data in output
-- Assigns severity based on key type
-
-**Properties**:
-| Property | Type | Description |
-|----------|------|-------------|
-| `extension` | Property<AndroidBuildAnalyzerExtension> | Configuration |
-| `patterns` | List<String> | Custom patterns (overrides extension) |
-| `findings` | MutableList<ApiKeyFinding> | Detected API keys |
-
-**Data Class - ApiKeyFinding**:
 ```kotlin
-data class ApiKeyFinding(
-    val file: String,        // File path
-    val line: Int,           // Line number
-    val pattern: String,     // Regex pattern matched
-    val matched: String,     // Masked matched text
-    val severity: Severity   // HIGH, MEDIUM, LOW
-)
-```
-
-**Severity Logic**:
-- `HIGH`: Private keys, AWS keys (AKIA/ASIA), Firebase keys, Stripe keys
-- `MEDIUM`: Generic API keys
-- `LOW`: (Reserved for future use)
-
-**Improvement Ideas**:
-- Add support for more key types (Twilio, SendGrid, etc.)
-- Add suppression annotations (@SuppressWarnings("ApiKey"))
-- Add ignore list for false positives
-- Add support for .env files
-
----
-
-#### 4. ApkAnalysisTask
-
-**File**: `src/main/kotlin/com/davideagostini/analyzer/tasks/ApkAnalysisTask.kt`
-
-Analyzes APK composition and size breakdown.
-
-**Key Features**:
-- Uses Java ZipFile API to analyze APK
-- Categorizes APK entries by type
-- Calculates percentage breakdown
-- Supports both debug and release APKs
-
-**Properties**:
-| Property | Type | Description |
-|----------|------|-------------|
-| `extension` | Property<AndroidBuildAnalyzerExtension> | Configuration |
-| `apkComponents` | MutableList<ApkComponent> | Analysis results |
-
-**Data Class - ApkComponent**:
-```kotlin
-data class ApkComponent(
-    val name: String,        // Component name
-    val size: Long,          // Size in bytes
-    val percentage: Double   // Percentage of total
-)
-```
-
-**Categories**:
-| Category | Description |
-|----------|-------------|
-| DEX (Bytecode) | Dalvik/ART bytecode |
-| Resources Table | resources.arsc |
-| Native Libraries | lib/ directory |
-| Android Resources | res/ directory |
-| Assets | assets/ directory |
-| META-INF | Signing files |
-| XML Files | Binary XML files |
-| Other | Everything else |
-
-**APK Search Locations**:
-- `build/outputs/apk/debug/`
-- `build/outputs/apk/release/`
-
-**Improvement Ideas**:
-- Add per-DEX method count analysis
-- Add DEX compression analysis
-- Add native library ABI breakdown
-- Add comparison with previous build
-
----
-
-#### 5. SecurityCheckTask
-
-**File**: `src/main/kotlin/com/davideagostini/analyzer/tasks/SecurityCheckTask.kt`
-
-Checks for security vulnerabilities in build configuration and manifest.
-
-**Key Features**:
-- Analyzes build.gradle for security settings
-- Analyzes AndroidManifest.xml for security issues
-- Configurable checks via extension
-
-**Issue Types - SecurityIssueType**:
-```kotlin
-enum class SecurityIssueType(val displayName: String) {
-    DEBUG_ENABLED("Debug Enabled in Release"),
-    PROGUARD_DISABLED("ProGuard/R8 Disabled"),
-    DEBUG_APP_ID("Debug Application ID"),
-    MANIFEST_DEBUGGABLE("Manifest Debuggable Flag"),
-    ALLOW_BACKUP_ENABLED("Backup Enabled"),
-    CLEARTEXT_TRAFFIC("Cleartext Traffic Allowed"),
-    EXPORTED_COMPONENT("Exported Component Without Permission")
+androidBuildAnalyzer {
+    failOnCriticalIssues = true
 }
 ```
 
-**Data Class - SecurityFinding**:
+### 3. Exclude False Positives
+
+Add to your source code to suppress warnings:
+
 ```kotlin
-data class SecurityFinding(
-    val type: SecurityIssueType,
-    val severity: Severity,
-    val message: String,
-    val location: String,
-    val buildType: String  // "release", "debug", "all"
-)
+// The analyzer uses regex patterns, not annotations
+// Currently no suppression mechanism - use custom patterns to exclude
 ```
 
-**Checks Performed**:
+## Example Output
 
-1. **Build Configuration**:
-   - `debuggable=true` in release build type (HIGH)
-   - `minifyEnabled=false` in release build type (HIGH)
-   - Application ID contains `.debug` or `.test` (MEDIUM)
+```
+==================================================
+Security Check Results
+==================================================
+Found 3 issue(s): HIGH=1, MEDIUM=2, LOW=0
 
-2. **Manifest Analysis**:
-   - `android:debuggable="true"` (HIGH)
-   - `android:allowBackup="true"` (MEDIUM) - if checkAllowBackup enabled
-   - `android:usesCleartextTraffic="true"` (MEDIUM)
-   - Exported components without permission (LOW)
+HIGH: DEBUG_ENABLED
+   Release build type has debuggable=true. This allows debugging the release APK.
+   Location: build.gradle (buildTypes.release.debuggable)
 
-**Improvement Ideas**:
-- Add check for weak signature algorithms
-- Add check for insecure network security config
-- Add check for debuggable components
-- Add check for intent filter vulnerabilities
+MEDIUM: DEBUG_APP_ID
+   Application ID contains '.debug' or '.test', which may indicate a debug build configuration in production.
+   Location: build.gradle (defaultConfig.applicationId)
 
----
+MEDIUM: ALLOW_BACKUP_ENABLED
+   Manifest has android:allowBackup="true" which allows app data backup.
+   Location: AndroidManifest.xml (<application>)
+```
 
-#### 6. ResourceAnalysisTask
+## Troubleshooting
 
-**File**: `src/main/kotlin/com/davideagostini/analyzer/tasks/ResourceAnalysisTask.kt`
+### Plugin Not Found
 
-Analyzes Android resources for optimization opportunities.
+If you get "plugin not found", ensure the Gradle Plugin Portal is in your repositories:
 
-**Issue Types - ResourceIssueType**:
 ```kotlin
-enum class ResourceIssueType(val displayName: String) {
-    UNUSED_RESOURCE("Unused Resource"),
-    DUPLICATE_STRING("Duplicate String"),
-    OVERSIZED_IMAGE("Oversized Image")
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
 }
 ```
 
-**Data Class - ResourceFinding**:
-```kotlin
-data class ResourceFinding(
-    val type: ResourceIssueType,
-    val severity: Severity,
-    val resourceName: String,
-    val message: String,
-    val location: String
-)
-```
+### Analysis Not Running
 
-**Checks Performed**:
-
-1. **Unused Resources**:
-   - Parses XML resource files
-   - Scans source code for R.* references
-   - Reports resources not referenced in code (LOW)
-
-2. **Duplicate Strings**:
-   - Parses strings.xml
-   - Groups by string value
-   - Reports duplicates (LOW)
-
-3. **Oversized Images**:
-   - Scans drawable and mipmap directories
-   - Checks PNG, JPG, JPEG, WebP files
-   - Reports files > 1MB (MEDIUM)
-
-**Improvement Ideas**:
-- Add vector drawable analysis
-- Add density-specific resource analysis
-- Add string translation analysis
-- Add color resource analysis
-
----
-
-#### 7. ReportGeneratorTask
-
-**File**: `src/main/kotlin/com/davideagostini/analyzer/tasks/ReportGeneratorTask.kt`
-
-Generates an HTML report combining all analysis results.
-
-**Properties**:
-| Property | Type | Description |
-|----------|------|-------------|
-| `extension` | Property<AndroidBuildAnalyzerExtension> | Configuration |
-| `reportDir` | File | Output directory |
-| `apiKeyTask` | Property<ApiKeyDetectionTask> | API key results |
-| `apkAnalysisTask` | Property<ApkAnalysisTask> | APK analysis results |
-| `securityCheckTask` | Property<SecurityCheckTask> | Security results |
-| `resourceAnalysisTask` | Property<ResourceAnalysisTask> | Resource results |
-
-**Report Features**:
-- Summary cards with counts
-- Color-coded severity badges
-- Detailed tables for each category
-- Responsive design
-- Timestamp generation
-
-**Output**: `build/reports/analyzer/report.html`
-
-**Improvement Ideas**:
-- Add JSON/XML export option
-- Add trend analysis over builds
-- Add export to CSV
-- Add integration with CI/CD
-
----
-
-### Shared Data Classes
-
-#### Severity Enum
-
-**File**: Defined in ApiKeyDetectionTask.kt
+Ensure you have an Android application or library plugin applied:
 
 ```kotlin
-enum class Severity {
-    HIGH,    // Critical issues requiring immediate attention
-    MEDIUM,  // Issues that should be addressed
-    LOW      // Minor issues or recommendations
+plugins {
+    id("com.android.application")  // or com.android.library
+    id("com.davideagostini.analyzer")
 }
 ```
 
----
+### Report Not Generated
 
-## Extension Points for Future Improvements
+Check the `reportPath` configuration and ensure the directory is writable.
 
-### Adding New Analysis Tasks
+## Contributing
+
+Contributions are welcome! To add new features:
 
 1. Create a new task class extending `DefaultTask`
-2. Add `@get:Internal` for extension property
-3. Add findings list property
-4. Implement `@TaskAction` method
-5. Register task in `AndroidBuildAnalyzerPlugin.apply()`
-6. Add task dependency to `generateAnalysisReport`
+2. Register it in `AndroidBuildAnalyzerPlugin`
+3. Add findings to the report in `ReportGeneratorTask`
 
-### Adding New Configuration Options
+## License
 
-1. Add property to `AndroidBuildAnalyzerExtension`
-2. Add `@get:Input` annotation for task caching
-3. Update plugin to pass configuration to tasks
+MIT License - see LICENSE file for details.
 
-### Adding New Report Sections
+## Credits
 
-1. Add task reference to `ReportGeneratorTask`
-2. Add data class for findings
-3. Implement build method in `ReportGeneratorTask`
-4. Add section to HTML template
-
----
-
-## Known Limitations
-
-1. **API Key Detection**: Uses regex patterns - may have false positives/negatives
-2. **Unused Resources**: Basic R. reference check - may not detect dynamic references
-3. **APK Analysis**: Only analyzes first APK found
-4. **Manifest Parsing**: Uses regex rather than XML parsing
-
----
-
-## Testing
-
-A test app is included in `test-app/` that demonstrates all plugin features:
-- Fake API keys for detection
-- Debug build config for security checks
-- Duplicate strings for resource analysis
-
-Run tests:
-```bash
-cd test-app
-./gradlew analyze
-```
-
----
-
-## Version History
-
-- **1.0.0**: Initial release with API key detection, APK analysis, security checks, and resource analysis
+Developed by [Davide Agostini](https://github.com/davideagostini)
