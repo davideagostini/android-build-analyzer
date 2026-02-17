@@ -1,8 +1,7 @@
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
-    `maven-publish`
-    signing
+    id("com.gradle.plugin-publish") version "1.2.1"
 }
 
 group = "com.davideagostini"
@@ -46,52 +45,7 @@ gradlePlugin {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = group.toString()
-            artifactId = "android-build-analyzer"
-            version = version.toString()
-
-            artifact(tasks.named("jar"))
-
-            pom {
-                name.set("Android Build Analyzer")
-                description.set("Gradle plugin for Android security and performance analysis")
-                url.set("https://github.com/davideagostini/android-build-analyzer")
-                licenses {
-                    license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("davideagostini")
-                        name.set("Davide Agostini")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:https://github.com/davideagostini/android-build-analyzer.git")
-                    developerConnection.set("scm:git:git@github.com:davideagostini/android-build-analyzer.git")
-                    url.set("https://github.com/davideagostini/android-build-analyzer")
-                }
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            name = "mavenCentral"
-            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            credentials {
-                username = System.getenv("ORG_GRADLE_PROJECT_mavenCentralUsername")
-                password = System.getenv("ORG_GRADLE_PROJECT_mavenCentralPassword")
-            }
-        }
-    }
-}
-
-signing {
-    sign(publishing.publications["maven"])
+gradlePlugin {
+    website.set("https://github.com/davideagostini/android-build-analyzer")
+    vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
 }
