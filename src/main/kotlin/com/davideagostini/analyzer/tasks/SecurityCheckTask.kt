@@ -26,7 +26,17 @@ enum class SecurityIssueType(val displayName: String) {
     EXPORTED_RECEIVER("Exported Broadcast Receiver Without Permission"),
     EXPORTED_PROVIDER("Exported Content Provider Without Permission"),
     // New: Intent Filter Security
-    INTENT_FILTER_DATA_EXPOSURE("Intent Filter May Expose Data")
+    INTENT_FILTER_DATA_EXPOSURE("Intent Filter May Expose Data"),
+    // New: Network Security
+    MISSING_NETWORK_SECURITY_CONFIG("Missing Network Security Config"),
+    CLEAR_TEXT_HTTP_URL("Cleartext HTTP URL Found"),
+    NO_CERTIFICATE_PINNING("Missing Certificate Pinning"),
+    INSECURE_HTTP_URL("Insecure HTTP URL in Code"),
+    // New: ProGuard/R8 Analysis
+    MISSING_PROGUARD_RULES("Missing ProGuard/R8 Rules"),
+    NO_KEEP_CLASS_MEMBERS("Missing -keepclassmembers Rules"),
+    NO_OBFUSCATION("No Obfuscation Enabled"),
+    MISSING_LIBRARY_RULES("Missing Rules for Libraries")
 }
 
 /**
@@ -86,7 +96,7 @@ open class SecurityCheckTask : DefaultTask() {
                     val content = buildFile.readText()
 
                     if (extension.get().checkDebuggable) {
-                        val releaseDebugPattern = Regex("""release\s*\{[^}]*debuggable\s*=\s*true""", RegexOption.MULTILINE)
+                        val releaseDebugPattern = Regex("""release\s*\{[\s\S]*?debuggable\s*=\s*true""", RegexOption.MULTILINE)
                         if (releaseDebugPattern.containsMatchIn(content)) {
                             findings.add(
                                 SecurityFinding(
@@ -101,7 +111,7 @@ open class SecurityCheckTask : DefaultTask() {
                     }
 
                     if (extension.get().checkMinifyEnabled) {
-                        val releaseMinifyPattern = Regex("""release\s*\{[^}]*minifyEnabled\s*=\s*false""", RegexOption.MULTILINE)
+                        val releaseMinifyPattern = Regex("""release\s*\{[\s\S]*?minifyEnabled\s*=\s*false""", RegexOption.MULTILINE)
                         if (releaseMinifyPattern.containsMatchIn(content)) {
                             findings.add(
                                 SecurityFinding(
@@ -210,6 +220,10 @@ open class SecurityCheckTask : DefaultTask() {
             checkPermissions(content)
             checkComponentSecurity(content)
             checkIntentFilterSecurity(content)
+            checkNetworkSecurity(content)
+            checkHttpUrlsInCode()
+            checkCertificatePinning()
+            checkProGuardRules()
 
         } catch (e: Exception) {
             logger.warn("Could not analyze manifest: ${e.message}")
@@ -335,6 +349,232 @@ open class SecurityCheckTask : DefaultTask() {
                         message = "Intent filter with action '$action' may expose data - verify intent handling",
                         location = "AndroidManifest.xml (intent-filter)",
                         buildType = "all"
+                    )
+                )
+            }
+        }
+    }
+
+    private fun checkNetworkSecurity(content: String) {
+        // Check for Network Security Config
+        val networkSecurityConfigPattern = """android:networkSecurityConfig="(@+xml/|)network_security_config"""".toRegex()
+        val hasNetworkSecurityConfig = networkSecurityConfigPattern.containsMatchIn(content)
+
+        if (!hasNetworkSecurityConfig) {
+            findings.add(
+                SecurityFinding(
+                    type = SecurityIssueType.MISSING_NETWORK_SECURITY_CONFIG,
+                    severity = Severity.MEDIUM,
+                    message = "Missing Network Security Config - consider adding one to enforce HTTPS",
+                    location = "AndroidManifest.xml (<application>)",
+                    buildType = "all"
+                )
+            )
+        }
+
+        // Check for cleartext traffic permission
+        if (content.contains("android:usesCleartextTraffic=\"true\"")) {
+            findings.add(
+                SecurityFinding(
+                    type = SecurityIssueType.CLEAR_TEXT_HTTP_URL,
+                    severity = Severity.MEDIUM,
+                    message = "Cleartext traffic (HTTP) is allowed - this can be intercepted",
+                    location = "AndroidManifest.xml (<application>)",
+                    buildType = "all"
+                )
+            )
+        }
+    }
+
+    private fun checkHttpUrlsInCode() {
+        // Scan source files for HTTP URLs
+        val sourceDirs = listOf(
+            project.file("src/main/java"),
+            project.file("src/main/kotlin")
+        )
+
+        val httpUrlPattern = Regex("""https?://[^\s"'<>]+""")
+
+        sourceDirs.forEach { dir ->
+            if (dir.exists()) {
+                dir.walkTopDown().filter { it.extension in listOf("kt", "java", "xml") }.forEach { file ->
+                    try {
+                        val content = file.readText()
+                        httpUrlPattern.findAll(content).forEach { match ->
+                            val url = match.value
+                            if (url.startsWith("http://")) {
+                                findings.add(
+                                    SecurityFinding(
+                                        type = SecurityIssueType.INSECURE_HTTP_URL,
+                                        severity = Severity.MEDIUM,
+                                        message = "Insecure HTTP URL found: $url",
+                                        location = "${file.relativeTo(project.rootDir)}",
+                                        buildType = "all"
+                                    )
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Skip files that can't be read
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkCertificatePinning() {
+        // Scan source files for certificate pinning implementation
+        val sourceDirs = listOf(
+            project.file("src/main/java"),
+            project.file("src/main/kotlin")
+        )
+
+        val pinningKeywords = listOf(
+            "CertificatePinner",
+            "pinCertificate",
+            "setPinning",
+            "validateCertificate"
+        )
+
+        var hasPinning = false
+
+        sourceDirs.forEach { dir ->
+            if (dir.exists()) {
+                dir.walkTopDown().filter { it.extension in listOf("kt", "java") }.forEach { file ->
+                    try {
+                        val content = file.readText()
+                        if (pinningKeywords.any { content.contains(it, ignoreCase = true) }) {
+                            hasPinning = true
+                        }
+                    } catch (e: Exception) {
+                        // Skip files that can't be read
+                    }
+                }
+            }
+        }
+
+        if (!hasPinning) {
+            findings.add(
+                SecurityFinding(
+                    type = SecurityIssueType.NO_CERTIFICATE_PINNING,
+                    severity = Severity.LOW,
+                    message = "No certificate pinning detected - consider adding for enhanced security",
+                    location = "Source code",
+                    buildType = "all"
+                )
+            )
+        }
+    }
+
+    private fun checkProGuardRules() {
+        // Check if minify is enabled in build config
+        val buildFile = project.file("build.gradle")
+        val buildKtsFile = project.file("build.gradle.kts")
+
+        var minifyEnabled = false
+
+        // Check build.gradle.kts in current project (app module)
+        if (buildKtsFile.exists()) {
+            val content = buildKtsFile.readText()
+            // Use [\s\S]*? to match across newlines (non-greedy)
+            if (Regex("""release\s*\{[\s\S]*?isMinifyEnabled\s*=\s*true""", RegexOption.MULTILINE).containsMatchIn(content)) {
+                minifyEnabled = true
+            }
+        }
+
+        // Check build.gradle (Groovy) in current project
+        if (buildFile.exists()) {
+            val content = buildFile.readText()
+            if (Regex("""release\s*\{[\s\S]*?minifyEnabled\s*=\s*true""", RegexOption.MULTILINE).containsMatchIn(content)) {
+                minifyEnabled = true
+            }
+        }
+
+        // Also check root project directory if we're in app module
+        val rootBuildFile = project.file("../build.gradle")
+        val rootBuildKtsFile = project.file("../build.gradle.kts")
+
+        if (rootBuildKtsFile.exists()) {
+            val content = rootBuildKtsFile.readText()
+            if (Regex("""release\s*\{[\s\S]*?isMinifyEnabled\s*=\s*true""", RegexOption.MULTILINE).containsMatchIn(content)) {
+                minifyEnabled = true
+            }
+        }
+
+        if (rootBuildFile.exists()) {
+            val content = rootBuildFile.readText()
+            if (Regex("""release\s*\{[\s\S]*?minifyEnabled\s*=\s*true""", RegexOption.MULTILINE).containsMatchIn(content)) {
+                minifyEnabled = true
+            }
+        }
+
+        if (minifyEnabled) {
+            // Check for ProGuard rules file
+            val proguardFiles = listOf(
+                project.file("proguard-rules.pro"),
+                project.file("app/proguard-rules.pro"),
+                project.file("../proguard-rules.pro"),
+                project.file("../app/proguard-rules.pro"),
+                project.file("proguard-android.txt"),
+                project.file("app/proguard-android.txt")
+            )
+
+            val rulesFile = proguardFiles.firstOrNull { it.exists() }
+
+            if (rulesFile != null) {
+                val rulesContent = rulesFile.readText()
+
+                // Check for common library rules
+                val commonLibraries = listOf(
+                    "okhttp" to "-dontwarn okhttp3",
+                    "retrofit" to "-dontwarn retrofit2",
+                    "gson" to "-keepattributes Signature",
+                    "rxjava" to "-dontwarn rxjava",
+                    "commons-io" to "-dontwarn org.apache.commons.io"
+                )
+
+                commonLibraries.forEach { (library, rule) ->
+                    val hasLibrary = rulesContent.contains(library, ignoreCase = true)
+                    // Check if there's a ProGuard rule for this library
+                    // Look for lines starting with -dontwarn or -keep that contain the library name
+                    // Use \b (word boundary) to avoid matching "okhttp3" for library "okhttp"
+                    val proguardRulePattern = Regex("""^\s*-(dontwarn|keep|warn)\s+.*\b$library\b""", RegexOption.MULTILINE)
+                    val hasRule = proguardRulePattern.containsMatchIn(rulesContent)
+                    if (hasLibrary && !hasRule) {
+                        findings.add(
+                            SecurityFinding(
+                                type = SecurityIssueType.MISSING_LIBRARY_RULES,
+                                severity = Severity.LOW,
+                                message = "Library '$library' may need additional rules",
+                                location = rulesFile.relativeTo(project.rootDir).path,
+                                buildType = "release"
+                            )
+                        )
+                    }
+                }
+
+                // Check for -keepclassmembers rules (ignore comments, look for rule at start of line)
+                val keepClassMembersPattern = Regex("""^\s*-keepclassmembers""", RegexOption.MULTILINE)
+                val hasKeepClassMembers = keepClassMembersPattern.containsMatchIn(rulesContent)
+                if (!hasKeepClassMembers) {
+                    findings.add(
+                        SecurityFinding(
+                            type = SecurityIssueType.NO_KEEP_CLASS_MEMBERS,
+                            severity = Severity.LOW,
+                            message = "No -keepclassmembers rules found - consider adding for model classes",
+                            location = rulesFile.relativeTo(project.rootDir).path,
+                            buildType = "release"
+                        )
+                    )
+                }
+            } else {
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.MISSING_PROGUARD_RULES,
+                        severity = Severity.MEDIUM,
+                        message = "ProGuard rules file not found - create one for better obfuscation",
+                        location = "proguard-rules.pro",
+                        buildType = "release"
                     )
                 )
             }

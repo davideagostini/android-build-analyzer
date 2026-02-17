@@ -67,7 +67,22 @@ Identifies common security vulnerabilities in your Android project.
 |-------|----------|-------------|
 | Intent Filter Data Exposure | LOW | Intent filter may expose data |
 
-### 4. Resource Analysis
+### 4. Network Security
+Analyzes network security configuration and detects insecure HTTP URLs.
+
+**Manifest Checks:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Missing Network Security Config | MEDIUM | No network security config found |
+| Cleartext Traffic Allowed | MEDIUM | HTTP traffic allowed in manifest |
+
+**Code Analysis:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Insecure HTTP URL | MEDIUM | HTTP URL found in source code |
+| No Certificate Pinning | LOW | No certificate pinning detected |
+
+### 5. Resource Analysis
 Optimizes your app's resources to reduce APK size.
 
 **Checks:**
@@ -361,15 +376,16 @@ Check the `reportPath` configuration and ensure the directory is writable.
 - **Security vulnerabilities**: Integrate with CVE databases
 - **Duplicate dependencies**: Find duplicate JAR files
 
-#### 4. ProGuard/R8 Analysis
-- **Rules quality check**: Validate ProGuard rules
-- **Missing rules warning**: Suggest rules for common libraries
-- **Optimization suggestions**: Recommend R8 optimizations
+#### 4. ProGuard/R8 Analysis ✅ IMPLEMENTED
+- **Rules quality check**: Validate ProGuard rules ✅
+- **Missing rules warning**: Suggest rules for common libraries ✅
+- **Missing -keepclassmembers**: Check for model class protection ✅
+- **Library rules validation**: Verify proper rules for common libraries (OkHttp, Retrofit, Gson, etc.) ✅
 
-#### 5. Network Security
-- **Network Security Config**: Analyze security configuration
-- **HTTP URL detection**: Find cleartext HTTP URLs in code
-- **Certificate pinning**: Check for certificate pinning implementation
+#### 5. Network Security ✅ IMPLEMENTED
+- **Network Security Config**: Analyze security configuration ✅
+- **HTTP URL detection**: Find cleartext HTTP URLs in code ✅
+- **Certificate pinning**: Check for certificate pinning implementation ✅
 
 #### 6. Enhanced Manifest Analysis ✅ IMPLEMENTED
 - **Permission analysis**: Review permission usage ✅
