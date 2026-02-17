@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Normal strings -->
+    <string name="app_name">Test App</string>
+    <string name="hello_world">Hello World!</string>
+
+    <!-- Duplicate strings for resource analysis testing -->
+    <string name="duplicate_string">This is a duplicate string</string>
+    <string name="duplicate_string_2">This is a duplicate string</string>
+    <string name="button_text">Click Me</string>
+    <string name="subtitle">Welcome to Test App</string>
+
+    <!-- Additional strings -->
+    <string name="welcome_message">Welcome to our app!</string>
+    <string name="error_message">An error occurred</string>
+    <string name="success_message">Operation successful</string>
+
+    <!-- More duplicates -->
+    <string name="common_message">Please wait...</string>
+    <string name="loading_message">Please wait...</string>
+</resources>
