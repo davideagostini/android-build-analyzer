@@ -34,6 +34,13 @@ Analyzes your built APK to understand its composition and identify optimization 
 ### 3. Security Check
 Identifies common security vulnerabilities in your Android project.
 
+**Key Feature: Actionable Fix Suggestions**
+Each security finding includes specific fix suggestions with code examples:
+- Network Security Config XML template
+- HTTPS URL replacements
+- Permission attribute examples
+- ProGuard rules snippets
+
 **Build Configuration Checks:**
 | Issue | Severity | Description |
 |-------|----------|-------------|
@@ -82,7 +89,22 @@ Analyzes network security configuration and detects insecure HTTP URLs.
 | Insecure HTTP URL | MEDIUM | HTTP URL found in source code |
 | No Certificate Pinning | LOW | No certificate pinning detected |
 
-### 5. Resource Analysis
+### 5. ProGuard/R8 Analysis
+Analyzes ProGuard/R8 configuration for best practices when code obfuscation is enabled.
+
+**Checks:**
+- **Missing rules file**: Detects when proguard-rules.pro is missing
+- **Rules quality check**: Validate ProGuard rules
+- **Missing -keepclassmembers**: Check for model class protection
+- **Library rules validation**: Verify proper rules for common libraries (OkHttp, Retrofit, Gson, RxJava, etc.)
+
+**Actionable Fix Suggestions:**
+Each finding includes specific code snippets to fix the issue:
+- Suggested ProGuard rules to add
+- Example -keepclassmembers patterns
+- Template for new proguard-rules.pro files
+
+### 6. Resource Analysis
 Optimizes your app's resources to reduce APK size.
 
 **Checks:**
@@ -90,7 +112,7 @@ Optimizes your app's resources to reduce APK size.
 - **Duplicate Strings**: Identifies duplicate string values
 - **Oversized Images**: Flags images larger than 1MB
 
-### 5. HTML Report
+### 7. HTML Report
 Generates a comprehensive HTML report with:
 - Summary cards with issue counts
 - Color-coded severity badges
@@ -402,6 +424,55 @@ Check the `reportPath` configuration and ensure the directory is writable.
 - **User-defined patterns**: Allow custom regex rules
 - **Rule categories**: Organize custom rules by type
 - **Rule sharing**: Share rule sets between projects
+
+#### 9. Build Cache Analysis
+Analyzes Gradle build cache performance and provides optimization suggestions.
+
+- **Cache hit/miss ratio**: Monitor build cache effectiveness
+- **Task recompilation detection**: Identify tasks that rebuild unnecessarily
+- **Cache size analysis**: Track cache growth over time
+- **Suggestions**: Enable configuration cache, update Gradle wrapper
+
+Example output:
+```
+📊 Cache Report
+- Hit rate: 67% (should be >90%)
+- Unnecessarily recalculated tasks: :app:compileDebugKotlin (3 times today)
+- Suggestion: add org.gradle.caching=true in gradle.properties
+```
+
+#### 10. Dependency Health Check
+Analyzes project dependencies for security vulnerabilities and outdated versions.
+
+- **CVE vulnerability detection**: Check against GitHub Advisory Database
+- **Outdated dependencies**: Compare with latest available versions
+- **Unused dependencies**: Find implementation dependencies not used in code
+- **Circular dependencies**: Detect circular dependency chains
+
+Example output:
+```
+🔴 Security Alert: coil-kt 1.1.0 has CVE-2024-1234
+🟡 Update Available: kotlin 1.8.0 → 1.9.22
+⚠️ Unused: implementation 'androidx.recyclerview:recyclerview' (not found in code)
+```
+
+#### 11. Task Execution Breakdown
+Provides detailed timing analysis of build tasks to identify bottlenecks.
+
+- **Task timeline**: Breakdown of each task during build
+- **Slowest tasks**: Identify tasks like kapt, dex, merge resources
+- **Parallel execution efficiency**: Analyze parallel vs sequential execution
+- **Config vs Execution time**: Separate configuration time from execution time
+
+Example output:
+```
+⏱️ Build Breakdown (last: 4m 23s)
+- Configuration: 12s
+- :app:kaptGenerateDebugKotlin: 1m 45s (42%)
+- :app:dexDebug: 58s (23%)
+- :app:mergeDebugResources: 32s (12%)
+💡 Suggestion: enable kapt incremental=false if not using KSP
+```
 
 ---
 
