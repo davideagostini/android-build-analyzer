@@ -2,6 +2,7 @@ plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
     `maven-publish`
+    signing
 }
 
 group = "com.davideagostini"
@@ -45,11 +46,11 @@ gradlePlugin {
     }
 }
 
-// JitPack Publishing Configuration
+// Maven Central Publishing Configuration
 publishing {
     publications {
-        create<MavenPublication>("gpr") {
-            groupId = "com.davideagostini"
+        create<MavenPublication>("mavenJava") {
+            groupId = group.toString()
             artifactId = "android-build-analyzer"
             version = version.toString()
 
@@ -71,6 +72,7 @@ publishing {
                     developer {
                         id.set("davideagostini")
                         name.set("Davide Agostini")
+                        email.set("davide@example.com")
                     }
                 }
 
@@ -82,4 +84,22 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "sonatype"
+            val releasesUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            val snapshotsUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = uri(if (version.toString().endsWith("-SNAPSHOT")) snapshotsUrl else releasesUrl)
+            credentials {
+                username = System.getenv("ORG_GRADLE_PROJECT_NEXUS_USERNAME")
+                password = System.getenv("ORG_GRADLE_PROJECT_NEXUS_PASSWORD")
+            }
+        }
+    }
+}
+
+// Signing configuration (for release builds)
+signing {
+    sign(publishing.publications["mavenJava"])
 }
