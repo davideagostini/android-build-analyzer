@@ -17,6 +17,7 @@ dependencies {
     implementation("com.android.tools.build:gradle:8.2.2")
     implementation(gradleApi())
     implementation(localGroovy())
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
 }
 
 java {

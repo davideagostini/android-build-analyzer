@@ -34,16 +34,38 @@ Analyzes your built APK to understand its composition and identify optimization 
 ### 3. Security Check
 Identifies common security vulnerabilities in your Android project.
 
-**Checks:**
+**Build Configuration Checks:**
 | Issue | Severity | Description |
 |-------|----------|-------------|
 | Debug Enabled in Release | HIGH | debuggable=true in release build |
 | ProGuard/R8 Disabled | HIGH | minifyEnabled=false in release |
 | Debug App ID | MEDIUM | Application ID contains .debug or .test |
+
+**Manifest Security Checks:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
 | Manifest Debuggable | HIGH | android:debuggable="true" in manifest |
 | Allow Backup | MEDIUM | android:allowBackup="true" |
 | Cleartext Traffic | MEDIUM | android:usesCleartextTraffic="true" |
 | Exported Component | LOW | Exported without permission |
+
+**Permission Analysis:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Dangerous Permission | HIGH/MEDIUM | Dangerous permissions (READ_SMS, CAMERA, etc.) |
+| Permission Not Defined | MEDIUM | Uses undefined custom permission |
+
+**Component Security:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Exported Service | MEDIUM | Service exported without permission |
+| Exported Receiver | MEDIUM | Broadcast receiver exported without permission |
+| Exported Provider | HIGH | Content provider exported without permission |
+
+**Intent Filter Security:**
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Intent Filter Data Exposure | LOW | Intent filter may expose data |
 
 ### 4. Resource Analysis
 Optimizes your app's resources to reduce APK size.
@@ -349,10 +371,10 @@ Check the `reportPath` configuration and ensure the directory is writable.
 - **HTTP URL detection**: Find cleartext HTTP URLs in code
 - **Certificate pinning**: Check for certificate pinning implementation
 
-#### 6. Enhanced Manifest Analysis
-- **Permission analysis**: Review permission usage
-- **Component security**: Detailed exported component analysis
-- **Intent filter security**: Check for intent filter vulnerabilities
+#### 6. Enhanced Manifest Analysis ✅ IMPLEMENTED
+- **Permission analysis**: Review permission usage ✅
+- **Component security**: Detailed exported component analysis ✅
+- **Intent filter security**: Check for intent filter vulnerabilities ✅
 
 #### 7. CI/CD Integration
 - **JSON/XML export**: Machine-readable report formats

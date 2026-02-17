@@ -17,8 +17,40 @@ enum class SecurityIssueType(val displayName: String) {
     MANIFEST_DEBUGGABLE("Manifest Debuggable Flag"),
     ALLOW_BACKUP_ENABLED("Backup Enabled"),
     CLEARTEXT_TRAFFIC("Cleartext Traffic Allowed"),
-    EXPORTED_COMPONENT("Exported Component Without Permission")
+    EXPORTED_COMPONENT("Exported Component Without Permission"),
+    // New: Permission Analysis
+    DANGEROUS_PERMISSION("Dangerous Permission Usage"),
+    PERMISSION_NOT_DEFINED("Permission Not Defined"),
+    // New: Component Security
+    EXPORTED_SERVICE("Exported Service Without Permission"),
+    EXPORTED_RECEIVER("Exported Broadcast Receiver Without Permission"),
+    EXPORTED_PROVIDER("Exported Content Provider Without Permission"),
+    // New: Intent Filter Security
+    INTENT_FILTER_DATA_EXPOSURE("Intent Filter May Expose Data")
 }
+
+/**
+ * Dangerous permissions that should be reviewed.
+ */
+private val DANGEROUS_PERMISSIONS = listOf(
+    "READ_CALENDAR", "WRITE_CALENDAR",
+    "CAMERA", "READ_CONTACTS", "WRITE_CONTACTS",
+    "GET_ACCOUNTS", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION",
+    "RECORD_AUDIO", "READ_PHONE_STATE", "READ_PHONE_NUMBERS",
+    "CALL_PHONE", "READ_CALL_LOG", "WRITE_CALL_LOG",
+    "SEND_SMS", "RECEIVE_SMS", "READ_SMS",
+    "WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE",
+    "BODY_SENSORS", "ACCESS_BACKGROUND_LOCATION"
+)
+
+/**
+ * Permissions that should always require explicit declaration.
+ */
+private val HIGH_RISK_PERMISSIONS = listOf(
+    "READ_CALL_LOG", "WRITE_CALL_LOG", "PROCESS_OUTGOING_CALLS",
+    "READ_SMS", "RECEIVE_SMS", "SEND_SMS",
+    "WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"
+)
 
 /**
  * Task that checks for security best practices.
@@ -174,8 +206,138 @@ open class SecurityCheckTask : DefaultTask() {
                 }
             }
 
+            // Enhanced Manifest Analysis
+            checkPermissions(content)
+            checkComponentSecurity(content)
+            checkIntentFilterSecurity(content)
+
         } catch (e: Exception) {
             logger.warn("Could not analyze manifest: ${e.message}")
+        }
+    }
+
+    private fun checkPermissions(content: String) {
+        // Check for dangerous permissions
+        DANGEROUS_PERMISSIONS.forEach { permission ->
+            if (content.contains("android.permission.$permission")) {
+                val severity = if (permission in HIGH_RISK_PERMISSIONS) Severity.HIGH else Severity.MEDIUM
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.DANGEROUS_PERMISSION,
+                        severity = severity,
+                        message = "Uses dangerous permission: $permission - Review if absolutely necessary",
+                        location = "AndroidManifest.xml (uses-permission)",
+                        buildType = "all"
+                    )
+                )
+            }
+        }
+
+        // Check for permission declarations
+        val permissionDeclarations = Regex("""<permission[^>]*android:name="([^"]+)"""").findAll(content)
+        val declaredPermissions = permissionDeclarations.map { it.groupValues[1] }.toSet()
+
+        // Check for uses-permission with undefined permissions
+        val usesPermissions = Regex("""android:name="android\.permission\.([^"]+)"""").findAll(content)
+        usesPermissions.forEach { match ->
+            val permName = "android.permission.${match.groupValues[1]}"
+            if (permName !in declaredPermissions && !permName.startsWith("android.permission.COMPANION_")) {
+                // Only warn for custom permissions, not system permissions
+                if (!permName.startsWith("android.permission.")) {
+                    findings.add(
+                        SecurityFinding(
+                            type = SecurityIssueType.PERMISSION_NOT_DEFINED,
+                            severity = Severity.MEDIUM,
+                            message = "Uses permission '$permName' that is not explicitly declared",
+                            location = "AndroidManifest.xml (uses-permission)",
+                            buildType = "all"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun checkComponentSecurity(content: String) {
+        // Check exported services without permission
+        val servicePattern = """<service[^>]*android:exported="true"[^>]*>""".toRegex()
+        servicePattern.findAll(content).forEach { match ->
+            val serviceContent = match.value
+            if (!serviceContent.contains("android:permission=")) {
+                val nameMatch = Regex("""android:name="([^"]+)"""").find(serviceContent)
+                val componentName = nameMatch?.groupValues?.get(1) ?: "Unknown Service"
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.EXPORTED_SERVICE,
+                        severity = Severity.MEDIUM,
+                        message = "Exported service '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
+                        buildType = "all"
+                    )
+                )
+            }
+        }
+
+        // Check exported broadcast receivers without permission
+        val receiverPattern = """<receiver[^>]*android:exported="true"[^>]*>""".toRegex()
+        receiverPattern.findAll(content).forEach { match ->
+            val receiverContent = match.value
+            if (!receiverContent.contains("android:permission=")) {
+                val nameMatch = Regex("""android:name="([^"]+)"""").find(receiverContent)
+                val componentName = nameMatch?.groupValues?.get(1) ?: "Unknown Receiver"
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.EXPORTED_RECEIVER,
+                        severity = Severity.MEDIUM,
+                        message = "Exported broadcast receiver '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
+                        buildType = "all"
+                    )
+                )
+            }
+        }
+
+        // Check exported content providers without permission
+        val providerPattern = """<provider[^>]*android:exported="true"[^>]*>""".toRegex()
+        providerPattern.findAll(content).forEach { match ->
+            val providerContent = match.value
+            if (!providerContent.contains("android:permission=") && !providerContent.contains("android:grantUriPermissions=")) {
+                val nameMatch = Regex("""android:name="([^"]+)"""").find(providerContent)
+                val componentName = nameMatch?.groupValues?.get(1) ?: "Unknown Provider"
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.EXPORTED_PROVIDER,
+                        severity = Severity.HIGH,
+                        message = "Exported content provider '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
+                        buildType = "all"
+                    )
+                )
+            }
+        }
+    }
+
+    private fun checkIntentFilterSecurity(content: String) {
+        // Check for intent filters with data exposure risk
+        val intentFilterPattern = """<intent-filter[^>]*>[\s\S]*?</intent-filter>""".toRegex()
+        intentFilterPattern.findAll(content).forEach { match ->
+            val intentFilter = match.value
+
+            // Check for implicit intents with data
+            if (intentFilter.contains("<data ") && intentFilter.contains("android:exported=\"true\"")) {
+                val actionMatch = Regex("""<action[^>]*android:name="([^"]+)"""").find(intentFilter)
+                val action = actionMatch?.groupValues?.get(1) ?: "Unknown"
+
+                findings.add(
+                    SecurityFinding(
+                        type = SecurityIssueType.INTENT_FILTER_DATA_EXPOSURE,
+                        severity = Severity.LOW,
+                        message = "Intent filter with action '$action' may expose data - verify intent handling",
+                        location = "AndroidManifest.xml (intent-filter)",
+                        buildType = "all"
+                    )
+                )
+            }
         }
     }
 
