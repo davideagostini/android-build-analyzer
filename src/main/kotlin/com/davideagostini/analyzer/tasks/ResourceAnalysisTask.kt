@@ -160,6 +160,9 @@ open class ResourceAnalysisTask : DefaultTask() {
             "src/main/res/mipmap-xxhdpi"
         )
 
+        // Also check assets folder for oversized images
+        val assetsDir = project.file("src/main/assets")
+
         val maxSizeBytes = 1024L * 1024L
 
         drawableDirs.forEach { dirPath ->
@@ -178,6 +181,23 @@ open class ResourceAnalysisTask : DefaultTask() {
                         )
                     )
                 }
+            }
+        }
+
+        // Check assets folder for oversized image files
+        if (assetsDir.exists()) {
+            assetsDir.walkTopDown().filter {
+                it.extension in listOf("png", "jpg", "jpeg", "webp", "gif")
+            }.filter { it.length() > maxSizeBytes }.forEach { file ->
+                findings.add(
+                    ResourceFinding(
+                        type = ResourceIssueType.OVERSIZED_IMAGE,
+                        severity = Severity.MEDIUM,
+                        resourceName = file.name,
+                        message = "Image file exceeds 1MB (${formatSize(file.length())})",
+                        location = file.relativeTo(project.rootDir).path
+                    )
+                )
             }
         }
     }
