@@ -1,7 +1,7 @@
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
-    id("com.gradle.plugin-publish") version "1.2.1"
+    id("com.gradle.plugin-publish") version "2.0.0"
 }
 
 group = "com.davideagostini"
@@ -41,6 +41,7 @@ gradlePlugin {
             displayName = "Android Build Analyzer"
             description = "Gradle plugin for Android security and performance analysis"
             implementationClass = "com.davideagostini.analyzer.AndroidBuildAnalyzerPlugin"
+            tags.set(listOf("android", "security", "performance", "analyzer"))
         }
     }
 }
