@@ -44,9 +44,3 @@ gradlePlugin {
         }
     }
 }
-
-// Gradle Plugin Portal Publishing
-gradlePluginPortal {
-    websiteUrl.set("https://github.com/davideagostini/android-build-analyzer")
-    vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
-}
