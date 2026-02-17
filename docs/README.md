@@ -319,6 +319,54 @@ plugins {
 
 Check the `reportPath` configuration and ensure the directory is writable.
 
+## Roadmap - Future Features
+
+### Planned Features for Future Releases
+
+#### 1. Extended API Key Detection
+- **Twilio/SendGrid/Mailgun keys**: Detect more third-party service keys
+- **OAuth tokens**: Detect OAuth access and refresh tokens
+- **Database connection strings**: Find exposed database credentials
+- **Suppression annotations**: Allow developers to suppress false positives
+
+#### 2. DEX Analysis
+- **Method count per DEX**: Analyze method count limits (64K)
+- **DEX compression analysis**: Check compression effectiveness
+- **Native library ABI breakdown**: Analyze native libraries by architecture
+
+#### 3. Dependency Analysis
+- **Outdated dependencies**: Check for available updates
+- **Security vulnerabilities**: Integrate with CVE databases
+- **Duplicate dependencies**: Find duplicate JAR files
+
+#### 4. ProGuard/R8 Analysis
+- **Rules quality check**: Validate ProGuard rules
+- **Missing rules warning**: Suggest rules for common libraries
+- **Optimization suggestions**: Recommend R8 optimizations
+
+#### 5. Network Security
+- **Network Security Config**: Analyze security configuration
+- **HTTP URL detection**: Find cleartext HTTP URLs in code
+- **Certificate pinning**: Check for certificate pinning implementation
+
+#### 6. Enhanced Manifest Analysis
+- **Permission analysis**: Review permission usage
+- **Component security**: Detailed exported component analysis
+- **Intent filter security**: Check for intent filter vulnerabilities
+
+#### 7. CI/CD Integration
+- **JSON/XML export**: Machine-readable report formats
+- **GitHub Security Alerts**: Integration with GitHub security tab
+- **Trend analysis**: Track issues across builds
+- **Slack/Teams notifications**: Alert on critical issues
+
+#### 8. Custom Rules Engine
+- **User-defined patterns**: Allow custom regex rules
+- **Rule categories**: Organize custom rules by type
+- **Rule sharing**: Share rule sets between projects
+
+---
+
 ## Contributing
 
 Contributions are welcome! To add new features:
