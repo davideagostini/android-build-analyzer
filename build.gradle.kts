@@ -79,6 +79,17 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "mavenCentral"
+            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            credentials {
+                username = System.getenv("ORG_GRADLE_PROJECT_mavenCentralUsername")
+                password = System.getenv("ORG_GRADLE_PROJECT_mavenCentralPassword")
+            }
+        }
+    }
 }
 
 signing {
