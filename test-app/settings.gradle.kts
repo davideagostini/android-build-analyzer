@@ -4,9 +4,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    includeBuild("../") {
-        name = "android-build-analyzer"
-    }
 }
 
 dependencyResolutionManagement {

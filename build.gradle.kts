@@ -83,6 +83,15 @@ publishing {
                 }
             }
         }
+
+        // Plugin marker for Gradle Plugin Portal
+        create<MavenPublication>("pluginMarker") {
+            groupId = group.toString()
+            artifactId = "com.davideagostini.analyzer.gradle.plugin"
+            version = version.toString()
+
+            artifact(tasks.named("jar"))
+        }
     }
 
     repositories {
