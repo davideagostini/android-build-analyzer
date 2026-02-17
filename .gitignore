@@ -27,6 +27,10 @@ render.experimental.xml
 *.jks
 *.keystore
 
+# GPG keys
+gpg-key.txt
+*.gpg
+
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
