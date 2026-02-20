@@ -174,7 +174,7 @@ pluginManagement {
 // build.gradle.kts
 plugins {
     id("com.android.application")
-    id("com.davideagostini.analyzer") version "1.0.0"
+    id("com.davideagostini.analyzer") version "1.0.1"
 }
 ```
 

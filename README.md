@@ -21,7 +21,7 @@ Add the plugin to your `settings.gradle` or `build.gradle`:
 ```groovy
 // In settings.gradle
 plugins {
-    id 'com.davideagostini.analyzer' version '1.0.0'
+    id 'com.davideagostini.analyzer' version '1.0.1'
 }
 ```
 
@@ -53,7 +53,7 @@ pluginManagement {
 }
 
 plugins {
-    id("com.davideagostini.analyzer") version "1.0.0"
+    id("com.davideagostini.analyzer") version "1.0.1"
 }
 ```
 
@@ -69,7 +69,7 @@ pluginManagement {
 }
 
 plugins {
-    id 'com.davideagostini.analyzer' version '1.0.0'
+    id 'com.davideagostini.analyzer' version '1.0.1'
 }
 ```
 
@@ -96,7 +96,7 @@ androidBuildAnalyzer {
 
 The HTML report will be generated at `app/build/reports/analyzer/report.html`.
 
-**Note:** When using Maven Local, the plugin version must match the version in the plugin's `build.gradle.kts` (`version = "1.0.0"`).
+**Note:** When using Maven Local, the plugin version must match the version in the plugin's `build.gradle.kts` (`version = "1.0.1"`).
 
 ## Configuration
 
@@ -217,7 +217,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "com.davideagostini"
             artifactId = "android-build-analyzer"
-            version = "1.0.0"
+            version = "1.0.1"
 
             pom {
                 name.set("Android Build Analyzer")

@@ -315,7 +315,7 @@ open class ReportGeneratorTask : DefaultTask() {
 
         return """{
   "tool": "Android Build Analyzer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "generatedAt": "${java.time.Instant.now()}",
   "summary": {
     "apiKeys": ${apiKeys.size},
@@ -405,7 +405,7 @@ open class ReportGeneratorTask : DefaultTask() {
       "tool": {
         "driver": {
           "name": "Android Build Analyzer",
-          "version": "1.0.0",
+          "version": "1.0.1",
           "informationUri": "https://github.com/davideagostini/android-build-analyzer",
           "rules": [$rulesJson]
         }
