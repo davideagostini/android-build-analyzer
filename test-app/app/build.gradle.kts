@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.davideagostini.analyzer")
+    id("io.github.davideagostini.analyzer")
 }
 
 android {

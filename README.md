@@ -43,7 +43,7 @@ Add the plugin to your `settings.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("com.davideagostini.analyzer") version "1.0.1"
+    id("io.github.davideagostini.analyzer") version "1.0.1"
 }
 ```
 
@@ -51,7 +51,7 @@ Or in Groovy `settings.gradle`:
 
 ```groovy
 plugins {
-    id 'com.davideagostini.analyzer' version '1.0.1'
+    id 'io.github.davideagostini.analyzer' version '1.0.1'
 }
 ```
 
@@ -80,7 +80,7 @@ pluginManagement {
 }
 
 plugins {
-    id("com.davideagostini.analyzer") version "1.0.1"
+    id("io.github.davideagostini.analyzer") version "1.0.1"
 }
 ```
 

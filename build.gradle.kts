@@ -40,7 +40,7 @@ gradlePlugin {
     vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
     plugins {
         create("androidBuildAnalyzer") {
-            id = "com.davideagostini.analyzer"
+            id = "io.github.davideagostini.analyzer"
             displayName = "Android Build Analyzer"
             description = "Gradle plugin for Android security and performance analysis"
             implementationClass = "com.davideagostini.analyzer.AndroidBuildAnalyzerPlugin"

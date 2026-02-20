@@ -174,7 +174,7 @@ pluginManagement {
 // build.gradle.kts
 plugins {
     id("com.android.application")
-    id("com.davideagostini.analyzer") version "1.0.1"
+    id("io.github.davideagostini.analyzer") version "1.0.1"
 }
 ```
 
@@ -422,7 +422,7 @@ Ensure you have an Android application or library plugin applied:
 ```kotlin
 plugins {
     id("com.android.application")  // or com.android.library
-    id("com.davideagostini.analyzer")
+    id("io.github.davideagostini.analyzer")
 }
 ```
 
