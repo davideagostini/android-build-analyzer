@@ -2,6 +2,8 @@ package com.davideagostini.analyzer
 
 import com.davideagostini.analyzer.tasks.ApiKeyDetectionTask
 import com.davideagostini.analyzer.tasks.ApkAnalysisTask
+import com.davideagostini.analyzer.tasks.DependencyCheckTask
+import com.davideagostini.analyzer.tasks.GradlePropertiesCheckTask
 import com.davideagostini.analyzer.tasks.ReportGeneratorTask
 import com.davideagostini.analyzer.tasks.ResourceAnalysisTask
 import com.davideagostini.analyzer.tasks.SecurityCheckTask
@@ -58,10 +60,9 @@ class AndroidBuildAnalyzerPlugin : Plugin<Project> {
         }
 
         // Create the analyzeApk task - analyzes APK composition
-        // Depends on assembleDebug or assembleRelease to ensure APK exists
+        // Does not force a build; scans whatever APK is already present in build/outputs/apk/
         project.tasks.create("analyzeApk", ApkAnalysisTask::class.java).apply {
             this.extension.set(extension)
-            dependsOn("assembleDebug", "assembleRelease")
         }
 
         // Create the securityCheck task - checks for security issues
@@ -74,14 +75,29 @@ class AndroidBuildAnalyzerPlugin : Plugin<Project> {
             this.extension.set(extension)
         }
 
-        // Create the generateAnalysisReport task - generates HTML report
+        // Create the checkGradleProperties task - checks gradle.properties for build optimizations
+        project.tasks.create("checkGradleProperties", GradlePropertiesCheckTask::class.java).apply {
+            this.extension.set(extension)
+        }
+
+        // Create the checkDependencyVersions task - checks for outdated dependencies on Maven Central
+        project.tasks.create("checkDependencyVersions", DependencyCheckTask::class.java).apply {
+            this.extension.set(extension)
+        }
+
+        // Create the generateAnalysisReport task - generates HTML, JSON and SARIF reports
         project.tasks.create("generateAnalysisReport", ReportGeneratorTask::class.java).apply {
             this.extension.set(extension)
             this.apiKeyTask.set(project.tasks.getByName("detectApiKeys") as ApiKeyDetectionTask)
             this.apkAnalysisTask.set(project.tasks.getByName("analyzeApk") as ApkAnalysisTask)
             this.securityCheckTask.set(project.tasks.getByName("securityCheck") as SecurityCheckTask)
             this.resourceAnalysisTask.set(project.tasks.getByName("analyzeResources") as ResourceAnalysisTask)
-            dependsOn("detectApiKeys", "analyzeApk", "securityCheck", "analyzeResources")
+            this.gradlePropertiesTask.set(project.tasks.getByName("checkGradleProperties") as GradlePropertiesCheckTask)
+            this.dependencyCheckTask.set(project.tasks.getByName("checkDependencyVersions") as DependencyCheckTask)
+            dependsOn(
+                "detectApiKeys", "analyzeApk", "securityCheck",
+                "analyzeResources", "checkGradleProperties", "checkDependencyVersions"
+            )
         }
 
         // Create the main analyze task that runs everything

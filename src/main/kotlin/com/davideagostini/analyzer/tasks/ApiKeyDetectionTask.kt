@@ -53,7 +53,11 @@ open class ApiKeyDetectionTask : DefaultTask() {
                 include("**/*.gradle.kts")
             }
 
-            tree.forEach { file ->
+            val excludePaths = extension.get().excludePaths
+            tree.filter { file ->
+                val relPath = file.relativeTo(project.rootDir).path
+                excludePaths.none { excluded -> relPath.contains(excluded) }
+            }.forEach { file ->
                 compiledPatterns.forEach { pattern ->
                     detectInFile(file, pattern)
                 }
@@ -126,6 +130,16 @@ open class ApiKeyDetectionTask : DefaultTask() {
                 logger.quiet("$colorCode${finding.severity.name}$reset: ${finding.file}:${finding.line}")
                 logger.quiet("   Pattern: ${finding.pattern}")
                 logger.quiet("   Matched: ${finding.matched}")
+            }
+        }
+
+        if (extension.get().failOnCriticalIssues) {
+            val highCount = findings.count { it.severity == Severity.HIGH }
+            if (highCount > 0) {
+                throw org.gradle.api.GradleException(
+                    "API key detection failed: $highCount HIGH severity key(s) exposed in source code. " +
+                    "Remove the exposed credentials or set failOnCriticalIssues = false to suppress this check."
+                )
             }
         }
     }

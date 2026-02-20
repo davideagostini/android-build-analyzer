@@ -629,11 +629,16 @@ open class SecurityCheckTask : DefaultTask() {
         // Regex pattern to match HTTP and HTTPS URLs
         val httpUrlPattern = Regex("""https?://[^\s"'<>]+""")
 
+        val excludePaths = extension.get().excludePaths
+
         // Iterate through each source directory
         sourceDirs.forEach { dir ->
             if (dir.exists()) {
                 // Walk through all files in the directory
-                dir.walkTopDown().filter { it.extension in listOf("kt", "java", "xml") }.forEach { file ->
+                dir.walkTopDown()
+                    .filter { it.extension in listOf("kt", "java", "xml") }
+                    .filter { file -> excludePaths.none { excluded -> file.relativeTo(project.rootDir).path.contains(excluded) } }
+                    .forEach { file ->
                     try {
                         val content = file.readText()
                         // Find all URLs in the file
@@ -693,11 +698,15 @@ open class SecurityCheckTask : DefaultTask() {
         )
 
         var hasPinning = false
+        val excludePaths = extension.get().excludePaths
 
         // Scan each source directory
         sourceDirs.forEach { dir ->
             if (dir.exists()) {
-                dir.walkTopDown().filter { it.extension in listOf("kt", "java") }.forEach { file ->
+                dir.walkTopDown()
+                    .filter { it.extension in listOf("kt", "java") }
+                    .filter { file -> excludePaths.none { excluded -> file.relativeTo(project.rootDir).path.contains(excluded) } }
+                    .forEach { file ->
                     try {
                         val content = file.readText()
                         // Check if any pinning keyword is present
@@ -819,7 +828,7 @@ open class SecurityCheckTask : DefaultTask() {
                 )
 
                 // Check each library for proper rules
-                commonLibraries.forEach { (library, rule) ->
+                commonLibraries.forEach { (library, _) ->
                     // First check if the library is referenced in the rules
                     val hasLibrary = rulesContent.contains(library, ignoreCase = true)
 
@@ -960,6 +969,13 @@ open class SecurityCheckTask : DefaultTask() {
                 logger.quiet("$colorCode${finding.severity.name}$reset: ${finding.type.displayName}")
                 logger.quiet("   ${finding.message}")
                 logger.quiet("   Location: ${finding.location}")
+            }
+
+            if (extension.get().failOnCriticalIssues && highCount > 0) {
+                throw org.gradle.api.GradleException(
+                    "Security check failed: $highCount HIGH severity issue(s) found. " +
+                    "Fix the issues above or set failOnCriticalIssues = false to suppress this check."
+                )
             }
         }
     }

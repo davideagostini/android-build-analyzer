@@ -36,6 +36,8 @@ tasks.withType<ProcessResources>().configureEach {
 }
 
 gradlePlugin {
+    website.set("https://github.com/davideagostini/android-build-analyzer")
+    vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
     plugins {
         create("androidBuildAnalyzer") {
             id = "com.davideagostini.analyzer"
@@ -45,9 +47,4 @@ gradlePlugin {
             tags.set(listOf("android", "security", "performance", "analyzer"))
         }
     }
-}
-
-gradlePlugin {
-    website.set("https://github.com/davideagostini/android-build-analyzer")
-    vcsUrl.set("https://github.com/davideagostini/android-build-analyzer")
 }

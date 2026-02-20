@@ -112,12 +112,41 @@ Optimizes your app's resources to reduce APK size.
 - **Duplicate Strings**: Identifies duplicate string values
 - **Oversized Images**: Flags images larger than 1MB
 
-### 7. HTML Report
-Generates a comprehensive HTML report with:
-- Summary cards with issue counts
-- Color-coded severity badges
-- Detailed findings for each category
-- Responsive design
+### 7. Dependency Version Check
+Queries Maven Central to detect outdated `implementation`, `api`, `testImplementation` and `runtimeOnly` dependencies declared with literal versions (variable-based versions like `$kotlinVersion` are skipped).
+
+- Network calls use a 5-second timeout and fail gracefully when Maven Central is unreachable
+- Pre-release versions (`-alpha`, `-beta`, `-RC`) in the latest version are skipped to avoid false positives
+- Only Maven Central is queried — Google Maven (`androidx.*`) dependencies may not be found
+
+### 8. Gradle Properties Check
+Checks `gradle.properties` for missing Gradle build optimization settings.
+
+| Issue | Suggested Fix |
+|-------|--------------|
+| Parallel Execution Disabled | `org.gradle.parallel=true` |
+| Build Cache Disabled | `org.gradle.caching=true` |
+| Configuration Cache Disabled | `org.gradle.configuration-cache=true` |
+| Low or Missing JVM Heap | `org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m` |
+| File System Watching Disabled | `org.gradle.vfs.watch=true` |
+
+### 9. Multi-format Reports
+Generates three report files in parallel:
+
+| File | Format | Use case |
+|------|--------|----------|
+| `report.html` | HTML | Human review in browser |
+| `report.json` | JSON | Scripting, dashboards, custom tooling |
+| `report.sarif` | SARIF 2.1.0 | GitHub Advanced Security, IDE integration |
+
+**GitHub Advanced Security integration:** Upload `report.sarif` as a code scanning result to surface findings directly in pull request diffs:
+
+```yaml
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: app/build/reports/analyzer/report.sarif
+```
 
 ## Requirements
 
@@ -181,7 +210,13 @@ androidBuildAnalyzer {
     reportPath = "build/reports/analyzer"  // Custom report path
 
     // Build behavior
-    failOnCriticalIssues = false  // Fail build on HIGH severity issues
+    // When true, throws a GradleException if any HIGH severity finding is detected
+    // Enforced in: detectApiKeys and securityCheck tasks
+    failOnCriticalIssues = false
+
+    // Exclude paths from all file scanning tasks (API key detection, HTTP URL scan, cert pinning)
+    // Any file whose relative path contains one of these substrings is skipped
+    excludePaths = listOf("src/test", "src/androidTest")
 
     // Custom API key patterns (optional)
     apiKeyPatterns = listOf(
@@ -200,9 +235,10 @@ androidBuildAnalyzer {
 ```
 
 This will:
-1. Build debug and release APKs
-2. Run all analysis tasks
-3. Generate HTML report
+1. Run all analysis tasks in parallel
+2. Generate HTML report at `build/reports/analyzer/report.html`
+
+> **Note:** `analyzeApk` scans whatever APK already exists in `build/outputs/apk/`. It no longer triggers a full build automatically. Run `./gradlew assembleRelease analyzeApk` if you need a fresh APK analysis.
 
 ### Run Individual Tasks
 
@@ -288,9 +324,17 @@ The `androidBuildAnalyzer` extension provides:
 | `checkMinifyEnabled` | Boolean | true | Check minifyEnabled |
 | `checkAllowBackup` | Boolean | true | Check allowBackup |
 | `reportPath` | String | build/reports/analyzer | Report location |
-| `failOnCriticalIssues` | Boolean | false | Fail build on HIGH issues |
+| `failOnCriticalIssues` | Boolean | false | Throws `GradleException` when any HIGH severity finding is found |
 | `apiKeyPatterns` | List<String> | (default patterns) | Custom detection patterns |
 | `srcDirs` | FileCollection | src/main/* | Directories to scan |
+| `excludePaths` | List<String> | `[]` | Path substrings to exclude from file scanning (test dirs, examples, etc.) |
+
+### New tasks
+
+| Task | Description |
+|------|-------------|
+| `checkDependencyVersions` | Queries Maven Central for outdated dependencies |
+| `checkGradleProperties` | Checks `gradle.properties` for missing optimizations |
 
 ## Best Practices
 
@@ -321,12 +365,20 @@ androidBuildAnalyzer {
 
 ### 3. Exclude False Positives
 
-Add to your source code to suppress warnings:
+Use `excludePaths` to skip files or directories that produce noise (test fixtures, example code, generated files):
 
 ```kotlin
-// The analyzer uses regex patterns, not annotations
-// Currently no suppression mechanism - use custom patterns to exclude
+androidBuildAnalyzer {
+    excludePaths = listOf(
+        "src/test",
+        "src/androidTest",
+        "example/",
+        "generated/"
+    )
+}
 ```
+
+This applies to: API key detection, HTTP URL scanning, and certificate pinning checks.
 
 ## Example Output
 
@@ -414,9 +466,9 @@ Check the `reportPath` configuration and ensure the directory is writable.
 - **Component security**: Detailed exported component analysis ✅
 - **Intent filter security**: Check for intent filter vulnerabilities ✅
 
-#### 7. CI/CD Integration
-- **JSON/XML export**: Machine-readable report formats
-- **GitHub Security Alerts**: Integration with GitHub security tab
+#### 7. CI/CD Integration ✅ PARTIALLY IMPLEMENTED
+- **JSON export**: Machine-readable report format ✅
+- **SARIF export**: GitHub Advanced Security integration ✅
 - **Trend analysis**: Track issues across builds
 - **Slack/Teams notifications**: Alert on critical issues
 

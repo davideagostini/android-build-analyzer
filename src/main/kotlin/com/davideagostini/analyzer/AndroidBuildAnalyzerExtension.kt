@@ -39,8 +39,8 @@ open class AndroidBuildAnalyzerExtension {
      * Source directories to scan for API keys.
      * These are automatically set to common Android source directories.
      */
+    @get:Input
     var srcDirs: FileCollection? = null
-        @get:Input get
 
     /**
      * Whether to check for debuggable=true in release build type.
@@ -76,6 +76,16 @@ open class AndroidBuildAnalyzerExtension {
      */
     @get:Input
     var failOnCriticalIssues: Boolean = false
+
+    /**
+     * List of path substrings to exclude from all file scanning tasks.
+     * Any file whose path contains one of these strings will be skipped.
+     *
+     * Example: excludePaths = listOf("src/test", "src/androidTest", "example/")
+     * Default: empty (no exclusions)
+     */
+    @get:Input
+    var excludePaths: List<String> = emptyList()
 
     companion object {
         /**

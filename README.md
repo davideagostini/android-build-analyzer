@@ -8,7 +8,9 @@ A Gradle plugin for Android developers to detect security issues and analyze APK
 - **APK Composition Analysis**: Breaks down APK size by component (DEX, resources, assets, native libraries)
 - **Security Best Practices**: Checks for debug flags, ProGuard/R8, allowBackup, cleartext traffic
 - **Resource Analysis**: Finds unused resources, duplicate strings, oversized images
-- **HTML Report**: Generates a comprehensive HTML report with color-coded severity levels
+- **Dependency Version Check**: Queries Maven Central to detect outdated `implementation`/`api` dependencies
+- **Gradle Properties Check**: Detects missing build optimizations (parallel execution, build cache, configuration cache, JVM heap, VFS watching)
+- **Multi-format Reports**: Generates `report.html`, `report.json` and `report.sarif` (SARIF 2.1.0 for GitHub Advanced Security)
 
 ## Installation
 
@@ -23,24 +25,7 @@ plugins {
 }
 ```
 
-### Option 2: Using JitPack
-
-If the plugin is published to JitPack, add this to your `settings.gradle`:
-
-```groovy
-pluginManagement {
-    repositories {
-        maven { url 'https://jitpack.io' }
-        gradlePluginPortal()
-    }
-}
-
-plugins {
-    id 'com.davideagostini.analyzer' version '1.0.0'
-}
-```
-
-### Option 3: Local Development
+### Option 2: Local Development
 
 To test locally without publishing:
 
@@ -71,7 +56,8 @@ androidBuildAnalyzer {
     checkMinifyEnabled = true        // Check for minifyEnabled in release
     checkAllowBackup = true          // Check for allowBackup in manifest
     reportPath = "build/reports/analyzer"  // Output path for HTML report
-    failOnCriticalIssues = false     // Fail build on critical issues
+    failOnCriticalIssues = false     // Fail build on HIGH severity issues (throws GradleException)
+    excludePaths = []                // Path substrings to skip during scanning
 }
 ```
 
@@ -140,27 +126,30 @@ HIGH: ProGuard/R8 Disabled
    Location: build.gradle (buildTypes.release.minifyEnabled)
 ```
 
-### HTML Report
+### Reports
 
-The HTML report is generated at: `build/reports/analyzer/report.html`
+Three files are generated in `build/reports/analyzer/`:
 
-The report includes:
-- Summary cards showing counts
-- API Key Detection section
-- Security Checks section
-- Resource Analysis section
-- Color-coded severity badges
+| File | Format | Use case |
+|------|--------|----------|
+| `report.html` | HTML | Human review in browser |
+| `report.json` | JSON | Scripting, dashboards, custom tooling |
+| `report.sarif` | SARIF 2.1.0 | GitHub Advanced Security, IDE integration |
+
+The HTML report includes summary cards, color-coded severity badges, and inline fix suggestions.
 
 ## Tasks
 
 | Task | Description |
 |------|-------------|
-| `analyze` | Runs all analysis tasks and generates report |
+| `analyze` | Runs all analysis tasks and generates all reports |
 | `detectApiKeys` | Scans source files for exposed API keys |
-| `analyzeApk` | Analyzes APK composition (requires APK to exist) |
+| `analyzeApk` | Analyzes APK composition — scans existing APK, does **not** trigger a build |
 | `securityCheck` | Checks build config and manifest for security issues |
 | `analyzeResources` | Analyzes resources for issues |
-| `generateAnalysisReport` | Generates HTML report |
+| `checkDependencyVersions` | Checks declared dependencies against Maven Central for updates |
+| `checkGradleProperties` | Checks `gradle.properties` for missing build optimizations |
+| `generateAnalysisReport` | Generates `report.html`, `report.json` and `report.sarif` |
 
 ## Publishing
 

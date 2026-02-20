@@ -40,7 +40,7 @@ open class ApkAnalysisTask : DefaultTask() {
     }
 
     private fun findApkFile(): File? {
-        val buildDir = project.buildDir
+        val buildDir = project.layout.buildDirectory.get().asFile
         val possibleLocations = listOf(
             "outputs/apk/debug",
             "outputs/apk/release"
