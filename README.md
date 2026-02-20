@@ -27,22 +27,76 @@ plugins {
 
 ### Option 2: Local Development
 
-To test locally without publishing:
+If the plugin is not yet published to the Gradle Plugin Portal, you can use Maven Local.
 
-```groovy
-// In build.gradle (project level)
-buildscript {
+**Step 1: Build and publish the plugin locally**
+
+```bash
+# Clone the repository
+git clone https://github.com/davideagostini/android-build-analyzer.git
+cd android-build-analyzer
+
+# Build and publish to Maven Local
+./gradlew clean publishToMavenLocal
+```
+
+**Step 2: Add the plugin to your Android project**
+
+In your Android project's `settings.gradle.kts`:
+
+```kotlin
+pluginManagement {
     repositories {
         mavenLocal()
-    }
-    dependencies {
-        classpath 'com.davideagostini:android-build-analyzer:1.0.0'
+        gradlePluginPortal()
     }
 }
 
-// In build.gradle (app level)
-apply plugin: 'com.davideagostini.analyzer'
+plugins {
+    id("com.davideagostini.analyzer") version "1.0.0"
+}
 ```
+
+Or if using Groovy `build.gradle`:
+
+```groovy
+// In settings.gradle
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'com.davideagostini.analyzer' version '1.0.0'
+}
+```
+
+**Step 3: Configure the plugin**
+
+Add the configuration block to your `app/build.gradle`:
+
+```kotlin
+androidBuildAnalyzer {
+    enabled = true
+    checkDebuggable = true
+    checkMinifyEnabled = true
+    checkAllowBackup = true
+    reportPath = "build/reports/analyzer"
+    failOnCriticalIssues = false
+}
+```
+
+**Step 4: Run the analysis**
+
+```bash
+./gradlew analyze
+```
+
+The HTML report will be generated at `app/build/reports/analyzer/report.html`.
+
+**Note:** When using Maven Local, the plugin version must match the version in the plugin's `build.gradle.kts` (`version = "1.0.0"`).
 
 ## Configuration
 
