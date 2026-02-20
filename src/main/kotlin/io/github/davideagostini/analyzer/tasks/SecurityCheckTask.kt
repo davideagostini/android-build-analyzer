@@ -1,8 +1,9 @@
-package com.davideagostini.analyzer.tasks
+package io.github.davideagostini.analyzer.tasks
 
-import com.davideagostini.analyzer.AndroidBuildAnalyzerExtension
+import com.android.build.gradle.BaseExtension
+import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.Input
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.Internal
 import org.gradle.api.provider.Property
@@ -168,7 +169,7 @@ open class SecurityCheckTask : DefaultTask() {
     private fun checkBuildConfig() {
         try {
             // Get the Android extension to access build configuration
-            val androidExtension = project.extensions.getByType(com.android.build.gradle.BaseExtension::class.java)
+            val androidExtension = project.extensions.getByType(BaseExtension::class.java)
 
             // Check debuggable and minifyEnabled settings if enabled in configuration
             if (extension.get().checkDebuggable || extension.get().checkMinifyEnabled) {
@@ -972,7 +973,7 @@ open class SecurityCheckTask : DefaultTask() {
             }
 
             if (extension.get().failOnCriticalIssues && highCount > 0) {
-                throw org.gradle.api.GradleException(
+                throw GradleException(
                     "Security check failed: $highCount HIGH severity issue(s) found. " +
                     "Fix the issues above or set failOnCriticalIssues = false to suppress this check."
                 )

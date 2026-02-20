@@ -1,10 +1,11 @@
-package com.davideagostini.analyzer
+package io.github.davideagostini.analyzer
 
-import com.davideagostini.analyzer.tasks.SecurityCheckTask
-import com.davideagostini.analyzer.tasks.SecurityIssueType
-import com.davideagostini.analyzer.tasks.Severity
+import io.github.davideagostini.analyzer.tasks.SecurityFinding
+import io.github.davideagostini.analyzer.tasks.SecurityIssueType
+import io.github.davideagostini.analyzer.tasks.Severity
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import java.io.File
 
 class SecurityCheckTaskTest {
 
@@ -202,14 +203,14 @@ class SecurityCheckTaskTest {
     }
 
     // Helper function to analyze manifest content
-    private fun analyzeManifest(manifestContent: String): List<com.davideagostini.analyzer.tasks.SecurityFinding> {
+    private fun analyzeManifest(manifestContent: String): List<SecurityFinding> {
         // Create a temporary manifest file
-        val tempFile = java.io.File.createTempFile("AndroidManifest", ".xml")
+        val tempFile = File.createTempFile("AndroidManifest", ".xml")
         tempFile.writeText(manifestContent)
         tempFile.deleteOnExit()
 
         // Return a mock list of findings based on manifest content
-        val findings = mutableListOf<com.davideagostini.analyzer.tasks.SecurityFinding>()
+        val findings = mutableListOf<SecurityFinding>()
 
         // Check dangerous permissions
         val dangerousPerms = listOf(
@@ -222,7 +223,7 @@ class SecurityCheckTaskTest {
             if (manifestContent.contains("android.permission.$perm")) {
                 val severity = if (perm in highRiskPerms) Severity.HIGH else Severity.MEDIUM
                 findings.add(
-                    com.davideagostini.analyzer.tasks.SecurityFinding(
+                    SecurityFinding(
                         type = SecurityIssueType.DANGEROUS_PERMISSION,
                         severity = severity,
                         message = "Uses dangerous permission: $perm - Review if absolutely necessary",
@@ -239,7 +240,7 @@ class SecurityCheckTaskTest {
                 manifestContent.substringAfter("<service").substringBefore(">").contains("android:exported=\"true\"") &&
                 !manifestContent.substringAfter("<service").substringBefore(">").contains("android:permission=")) {
                 findings.add(
-                    com.davideagostini.analyzer.tasks.SecurityFinding(
+                    SecurityFinding(
                         type = SecurityIssueType.EXPORTED_SERVICE,
                         severity = Severity.MEDIUM,
                         message = "Exported service has no permission protection",
@@ -254,7 +255,7 @@ class SecurityCheckTaskTest {
             val receiverSection = manifestContent.substringAfter("<receiver").substringBefore("</receiver>")
             if (!receiverSection.contains("android:permission=")) {
                 findings.add(
-                    com.davideagostini.analyzer.tasks.SecurityFinding(
+                    SecurityFinding(
                         type = SecurityIssueType.EXPORTED_RECEIVER,
                         severity = Severity.MEDIUM,
                         message = "Exported broadcast receiver has no permission protection",
@@ -269,7 +270,7 @@ class SecurityCheckTaskTest {
             val providerSection = manifestContent.substringAfter("<provider").substringBefore("</provider>")
             if (!providerSection.contains("android:permission=")) {
                 findings.add(
-                    com.davideagostini.analyzer.tasks.SecurityFinding(
+                    SecurityFinding(
                         type = SecurityIssueType.EXPORTED_PROVIDER,
                         severity = Severity.HIGH,
                         message = "Exported content provider has no permission protection",
@@ -284,7 +285,7 @@ class SecurityCheckTaskTest {
         if (manifestContent.contains("<data ") && manifestContent.contains("android:exported=\"true\"") &&
             manifestContent.contains("<intent-filter")) {
             findings.add(
-                com.davideagostini.analyzer.tasks.SecurityFinding(
+                SecurityFinding(
                     type = SecurityIssueType.INTENT_FILTER_DATA_EXPOSURE,
                     severity = Severity.LOW,
                     message = "Intent filter with action may expose data",

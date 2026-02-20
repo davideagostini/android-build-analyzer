@@ -1,11 +1,11 @@
-package com.davideagostini.analyzer.tasks
+package io.github.davideagostini.analyzer.tasks
 
-import com.davideagostini.analyzer.AndroidBuildAnalyzerExtension
+import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.Internal
 import org.gradle.api.provider.Property
+import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -59,7 +59,7 @@ open class ResourceAnalysisTask : DefaultTask() {
 
                     val items = doc.getElementsByTagName("item")
                     for (i in 0 until items.length) {
-                        val item = items.item(i) as org.w3c.dom.Element
+                        val item = items.item(i) as Element
                         val name = item.getAttribute("name")
                         if (name.isNotEmpty()) {
                             resourceIds.add(name)
@@ -68,7 +68,7 @@ open class ResourceAnalysisTask : DefaultTask() {
 
                     val colorItems = doc.getElementsByTagName("color")
                     for (i in 0 until colorItems.length) {
-                        val item = colorItems.item(i) as org.w3c.dom.Element
+                        val item = colorItems.item(i) as Element
                         val name = item.getAttribute("name")
                         if (name.isNotEmpty()) {
                             resourceIds.add(name)
@@ -125,7 +125,7 @@ open class ResourceAnalysisTask : DefaultTask() {
             val seenStrings = mutableMapOf<String, MutableList<String>>()
 
             for (i in 0 until stringElements.length) {
-                val element = stringElements.item(i) as org.w3c.dom.Element
+                val element = stringElements.item(i) as Element
                 val name = element.getAttribute("name")
                 if (name.isNotEmpty()) {
                     val value = element.textContent ?: ""

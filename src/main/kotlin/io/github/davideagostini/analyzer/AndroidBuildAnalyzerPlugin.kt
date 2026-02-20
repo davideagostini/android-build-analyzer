@@ -1,12 +1,12 @@
-package com.davideagostini.analyzer
+package io.github.davideagostini.analyzer
 
-import com.davideagostini.analyzer.tasks.ApiKeyDetectionTask
-import com.davideagostini.analyzer.tasks.ApkAnalysisTask
-import com.davideagostini.analyzer.tasks.DependencyCheckTask
-import com.davideagostini.analyzer.tasks.GradlePropertiesCheckTask
-import com.davideagostini.analyzer.tasks.ReportGeneratorTask
-import com.davideagostini.analyzer.tasks.ResourceAnalysisTask
-import com.davideagostini.analyzer.tasks.SecurityCheckTask
+import io.github.davideagostini.analyzer.tasks.ApiKeyDetectionTask
+import io.github.davideagostini.analyzer.tasks.ApkAnalysisTask
+import io.github.davideagostini.analyzer.tasks.DependencyCheckTask
+import io.github.davideagostini.analyzer.tasks.GradlePropertiesCheckTask
+import io.github.davideagostini.analyzer.tasks.ReportGeneratorTask
+import io.github.davideagostini.analyzer.tasks.ResourceAnalysisTask
+import io.github.davideagostini.analyzer.tasks.SecurityCheckTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -22,7 +22,7 @@ import org.gradle.api.Project
  * - A main 'analyze' task that runs all analysis and generates an HTML report
  *
  * Usage:
- *   apply plugin: 'com.davideagostini.analyzer'
+ *   apply plugin: 'io.github.davideagostini.analyzer'
  *   ./gradlew analyze
  */
 class AndroidBuildAnalyzerPlugin : Plugin<Project> {

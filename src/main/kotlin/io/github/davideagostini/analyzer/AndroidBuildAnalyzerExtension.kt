@@ -1,4 +1,4 @@
-package com.davideagostini.analyzer
+package io.github.davideagostini.analyzer
 
 import org.gradle.api.tasks.Input
 import org.gradle.api.file.FileCollection

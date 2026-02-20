@@ -1,11 +1,14 @@
-package com.davideagostini.analyzer.tasks
+package io.github.davideagostini.analyzer.tasks
 
-import com.davideagostini.analyzer.AndroidBuildAnalyzerExtension
+import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.Internal
 import org.gradle.api.provider.Property
+import java.io.File
+import java.time.Instant
+import java.time.LocalDateTime
 
 /**
  * Task that generates HTML, JSON and SARIF reports from all analysis tasks.
@@ -22,7 +25,7 @@ open class ReportGeneratorTask : DefaultTask() {
         project.objects.property(AndroidBuildAnalyzerExtension::class.java)
 
     @get:OutputDirectory
-    val reportDir: java.io.File by lazy {
+    val reportDir: File by lazy {
         project.file(extension.get().reportPath)
     }
 
@@ -56,9 +59,9 @@ open class ReportGeneratorTask : DefaultTask() {
 
         reportDir.mkdirs()
 
-        val htmlFile = java.io.File(reportDir, "report.html")
-        val jsonFile = java.io.File(reportDir, "report.json")
-        val sarifFile = java.io.File(reportDir, "report.sarif")
+        val htmlFile = File(reportDir, "report.html")
+        val jsonFile = File(reportDir, "report.json")
+        val sarifFile = File(reportDir, "report.sarif")
 
         htmlFile.writeText(buildHtmlReport())
         jsonFile.writeText(buildJsonReport())
@@ -193,7 +196,7 @@ open class ReportGeneratorTask : DefaultTask() {
     ${buildDependencySection()}
     ${buildGradlePropertiesSection()}
 
-    <p class="timestamp">Generated: ${java.time.LocalDateTime.now()}</p>
+    <p class="timestamp">Generated: ${LocalDateTime.now()}</p>
 </body>
 </html>
         """.trimIndent()
@@ -316,7 +319,7 @@ open class ReportGeneratorTask : DefaultTask() {
         return """{
   "tool": "Android Build Analyzer",
   "version": "1.0.1",
-  "generatedAt": "${java.time.Instant.now()}",
+  "generatedAt": "${Instant.now()}",
   "summary": {
     "apiKeys": ${apiKeys.size},
     "security": ${security.size},

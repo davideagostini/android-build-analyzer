@@ -1,11 +1,14 @@
-package com.davideagostini.analyzer.tasks
+package io.github.davideagostini.analyzer.tasks
 
-import com.davideagostini.analyzer.AndroidBuildAnalyzerExtension
+import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.Internal
 import org.gradle.api.provider.Property
+import java.io.File
+import java.util.regex.Pattern
 
 /**
  * Severity levels for findings.
@@ -39,7 +42,7 @@ open class ApiKeyDetectionTask : DefaultTask() {
         }
 
         val effectivePatterns = if (patterns.isNotEmpty()) patterns else extension.get().apiKeyPatterns
-        val compiledPatterns = effectivePatterns.map { java.util.regex.Pattern.compile(it) }
+        val compiledPatterns = effectivePatterns.map { Pattern.compile(it) }
 
         val sourceDirs = extension.get().srcDirs!!.filter { it.exists() && it.isDirectory }
 
@@ -67,7 +70,7 @@ open class ApiKeyDetectionTask : DefaultTask() {
         logFindings()
     }
 
-    private fun detectInFile(file: java.io.File, pattern: java.util.regex.Pattern) {
+    private fun detectInFile(file: File, pattern: Pattern) {
         try {
             val content = file.readText()
             val lines = content.lines()
@@ -136,7 +139,7 @@ open class ApiKeyDetectionTask : DefaultTask() {
         if (extension.get().failOnCriticalIssues) {
             val highCount = findings.count { it.severity == Severity.HIGH }
             if (highCount > 0) {
-                throw org.gradle.api.GradleException(
+                throw GradleException(
                     "API key detection failed: $highCount HIGH severity key(s) exposed in source code. " +
                     "Remove the exposed credentials or set failOnCriticalIssues = false to suppress this check."
                 )

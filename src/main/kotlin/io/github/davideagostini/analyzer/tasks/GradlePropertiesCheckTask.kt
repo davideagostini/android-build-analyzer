@@ -1,6 +1,6 @@
-package com.davideagostini.analyzer.tasks
+package io.github.davideagostini.analyzer.tasks
 
-import com.davideagostini.analyzer.AndroidBuildAnalyzerExtension
+import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction

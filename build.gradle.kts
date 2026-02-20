@@ -4,7 +4,7 @@ plugins {
     id("com.gradle.plugin-publish") version "2.0.0"
 }
 
-group = "com.davideagostini"
+group = "io.github.davideagostini"
 version = "1.0.1"
 
 repositories {
@@ -43,7 +43,7 @@ gradlePlugin {
             id = "io.github.davideagostini.analyzer"
             displayName = "Android Build Analyzer"
             description = "Gradle plugin for Android security and performance analysis"
-            implementationClass = "com.davideagostini.analyzer.AndroidBuildAnalyzerPlugin"
+            implementationClass = "io.github.davideagostini.analyzer.AndroidBuildAnalyzerPlugin"
             tags.set(listOf("android", "security", "performance", "analyzer"))
         }
     }
