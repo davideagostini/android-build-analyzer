@@ -1,6 +1,27 @@
-# Android Build Analyzer Plugin
+# Android Build Analyzer ⚡
 
-A Gradle plugin for Android developers to detect security issues and analyze APK performance.
+One command to secure your app and optimize your APK.
+
+[![Gradle](https://img.shields.io/badge/Gradle-8.x-blue?style=flat-square)](https://gradle.org)
+[![AGP](https://img.shields.io/badge/Android%20Gradle%20Plugin-8.x-green?style=flat-square)](https://developer.android.com/studio/build)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-purple?style=flat-square)](https://kotlinlang.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/davideagostini/android-build-analyzer?style=flat-square)](https://github.com/davideagostini/android-build-analyzer)
+
+---
+
+## Why?
+
+Every Android developer faces these problems:
+
+- ⚠️ **Accidentally committed API keys?** — It happens more often than you'd think
+- 📦 **APK too big?** — Don't know what's bloating it
+- 🔒 **Release without ProGuard?** — Security risk
+- 📝 **Unused resources?** — Wasting space
+
+**Android Build Analyzer** catches all of this — automatically.
+
+---
 
 ## Features
 
@@ -12,37 +33,43 @@ A Gradle plugin for Android developers to detect security issues and analyze APK
 - **Gradle Properties Check**: Detects missing build optimizations (parallel execution, build cache, configuration cache, JVM heap, VFS watching)
 - **Multi-format Reports**: Generates `report.html`, `report.json` and `report.sarif` (SARIF 2.1.0 for GitHub Advanced Security)
 
+---
+
 ## Installation
 
-### Option 1: Using Gradle Plugin Portal
+### Option 1: Gradle Plugin Portal (Recommended)
 
-Add the plugin to your `settings.gradle` or `build.gradle`:
+Add the plugin to your `settings.gradle.kts`:
+
+```kotlin
+plugins {
+    id("com.davideagostini.analyzer") version "1.0.1"
+}
+```
+
+Or in Groovy `settings.gradle`:
 
 ```groovy
-// In settings.gradle
 plugins {
     id 'com.davideagostini.analyzer' version '1.0.1'
 }
 ```
 
-### Option 2: Local Development
+### Option 2: Maven Local
 
 If the plugin is not yet published to the Gradle Plugin Portal, you can use Maven Local.
 
 **Step 1: Build and publish the plugin locally**
 
 ```bash
-# Clone the repository
 git clone https://github.com/davideagostini/android-build-analyzer.git
 cd android-build-analyzer
-
-# Build and publish to Maven Local
 ./gradlew clean publishToMavenLocal
 ```
 
-**Step 2: Add the plugin to your Android project**
+**Step 2: Add the plugin to your project**
 
-In your Android project's `settings.gradle.kts`:
+In your `settings.gradle.kts`:
 
 ```kotlin
 pluginManagement {
@@ -57,25 +84,9 @@ plugins {
 }
 ```
 
-Or if using Groovy `build.gradle`:
-
-```groovy
-// In settings.gradle
-pluginManagement {
-    repositories {
-        mavenLocal()
-        gradlePluginPortal()
-    }
-}
-
-plugins {
-    id 'com.davideagostini.analyzer' version '1.0.1'
-}
-```
-
 **Step 3: Configure the plugin**
 
-Add the configuration block to your `app/build.gradle`:
+Add to your `app/build.gradle.kts`:
 
 ```kotlin
 androidBuildAnalyzer {
@@ -88,7 +99,11 @@ androidBuildAnalyzer {
 }
 ```
 
-**Step 4: Run the analysis**
+---
+
+## Usage
+
+Run the full analysis:
 
 ```bash
 ./gradlew analyze
@@ -96,22 +111,35 @@ androidBuildAnalyzer {
 
 The HTML report will be generated at `app/build/reports/analyzer/report.html`.
 
-**Note:** When using Maven Local, the plugin version must match the version in the plugin's `build.gradle.kts` (`version = "1.0.1"`).
+### Available Tasks
+
+| Task | Description |
+|------|-------------|
+| `./gradlew analyze` | Run all checks & generate all reports |
+| `./gradlew detectApiKeys` | Scan for exposed API keys |
+| `./gradlew analyzeApk` | Analyze APK composition |
+| `./gradlew securityCheck` | Run security checks |
+| `./gradlew analyzeResources` | Find unused resources |
+| `./gradlew checkDependencyVersions` | Check for outdated dependencies |
+| `./gradlew checkGradleProperties` | Check Gradle optimizations |
+| `./gradlew generateAnalysisReport` | Generate HTML, JSON, SARIF reports |
+
+---
 
 ## Configuration
 
 The plugin provides configurable options via the `androidBuildAnalyzer` extension:
 
-```groovy
+```kotlin
 androidBuildAnalyzer {
     enabled = true                    // Enable/disable the plugin
     apiKeyPatterns = [...]            // Custom regex patterns for API keys
     checkDebuggable = true           // Check for debuggable flag in release
     checkMinifyEnabled = true        // Check for minifyEnabled in release
     checkAllowBackup = true          // Check for allowBackup in manifest
-    reportPath = "build/reports/analyzer"  // Output path for HTML report
-    failOnCriticalIssues = false     // Fail build on HIGH severity issues (throws GradleException)
-    excludePaths = []                // Path substrings to skip during scanning
+    reportPath = "build/reports/analyzer"  // Output path for reports
+    failOnCriticalIssues = false     // Fail build on HIGH severity issues
+    excludePaths = []                // Paths to skip during scanning
 }
 ```
 
@@ -128,34 +156,7 @@ The plugin detects these patterns by default:
 | Stripe | `[sS][tT][rR][iI][pP][eE][_]?[pP][uU][bB][lL][iI][cC][_]?[kK][eE][yY]...` |
 | Google API | `[gG][oO][oO][gG][lL][eE][_]?[aA][pP][iI][_]?[kK][eE][yY]...` |
 
-## Usage
-
-### Run Full Analysis
-
-```bash
-./gradlew analyze
-```
-
-This will run all analysis tasks and generate an HTML report.
-
-### Run Individual Tasks
-
-```bash
-# Detect API keys
-./gradlew detectApiKeys
-
-# Analyze APK composition
-./gradlew analyzeApk
-
-# Run security checks
-./gradlew securityCheck
-
-# Analyze resources
-./gradlew analyzeResources
-
-# Generate HTML report
-./gradlew generateAnalysisReport
-```
+---
 
 ## Output
 
@@ -187,61 +188,25 @@ Three files are generated in `build/reports/analyzer/`:
 | File | Format | Use case |
 |------|--------|----------|
 | `report.html` | HTML | Human review in browser |
-| `report.json` | JSON | Scripting, dashboards, custom tooling |
-| `report.sarif` | SARIF 2.1.0 | GitHub Advanced Security, IDE integration |
+| `report.json` | JSON | Scripting, dashboards |
+| `report.sarif` | SARIF 2.1.0 | GitHub Advanced Security |
 
-The HTML report includes summary cards, color-coded severity badges, and inline fix suggestions.
-
-## Tasks
-
-| Task | Description |
-|------|-------------|
-| `analyze` | Runs all analysis tasks and generates all reports |
-| `detectApiKeys` | Scans source files for exposed API keys |
-| `analyzeApk` | Analyzes APK composition — scans existing APK, does **not** trigger a build |
-| `securityCheck` | Checks build config and manifest for security issues |
-| `analyzeResources` | Analyzes resources for issues |
-| `checkDependencyVersions` | Checks declared dependencies against Maven Central for updates |
-| `checkGradleProperties` | Checks `gradle.properties` for missing build optimizations |
-| `generateAnalysisReport` | Generates `report.html`, `report.json` and `report.sarif` |
-
-## Publishing
-
-### Maven Central
-
-To publish to Maven Central, configure your publishing in `build.gradle.kts`:
-
-```kotlin
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "com.davideagostini"
-            artifactId = "android-build-analyzer"
-            version = "1.0.1"
-
-            pom {
-                name.set("Android Build Analyzer")
-                description.set("Gradle plugin for Android security and performance analysis")
-                url.set("https://github.com/davideagostini/android-build-analyzer")
-            }
-        }
-    }
-}
-```
-
-### GitHub Packages
-
-You can also publish to GitHub Packages using the included CI workflow.
+---
 
 ## Requirements
 
 - Gradle 8.x
 - Android Gradle Plugin 8.x
 - Kotlin 1.9.x
+- Java 17+
+
+---
 
 ## License
 
-MIT License
+MIT License - See [LICENSE](LICENSE) file.
+
+---
 
 ## Contributing
 
