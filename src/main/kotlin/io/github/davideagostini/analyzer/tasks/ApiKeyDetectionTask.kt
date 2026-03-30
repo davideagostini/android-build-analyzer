@@ -67,7 +67,23 @@ open class ApiKeyDetectionTask : DefaultTask() {
             }
         }
 
+        applySuppressions()
         logFindings()
+    }
+
+    private fun applySuppressions() {
+        val baselineEntries = FindingFilterSupport.loadBaseline(project, extension.get())
+        val filtered = findings.filterNot { finding ->
+            FindingFilterSupport.isSuppressed(
+                ruleId = "API_KEY_EXPOSURE",
+                fingerprint = FindingFilterSupport.sha256("${finding.file}:${finding.line}:${finding.pattern}"),
+                extension = extension.get(),
+                baselineEntries = baselineEntries
+            )
+        }
+
+        findings.clear()
+        findings.addAll(filtered)
     }
 
     private fun detectInFile(file: File, pattern: Pattern) {

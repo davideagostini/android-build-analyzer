@@ -2,9 +2,9 @@ package io.github.davideagostini.analyzer.tasks
 
 import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.TaskAction
-import org.gradle.api.tasks.Internal
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
 import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -17,6 +17,8 @@ enum class ResourceIssueType(val displayName: String) {
     DUPLICATE_STRING("Duplicate String"),
     OVERSIZED_IMAGE("Oversized Image")
 }
+
+private data class ResourceKey(val type: String, val name: String)
 
 /**
  * Task that analyzes Android resources.
@@ -41,6 +43,7 @@ open class ResourceAnalysisTask : DefaultTask() {
         checkDuplicateStrings()
         checkOversizedImages()
 
+        applySuppressions()
         logFindings()
     }
 
@@ -48,68 +51,150 @@ open class ResourceAnalysisTask : DefaultTask() {
         val resDir = project.file("src/main/res")
         if (!resDir.exists()) return
 
-        val resourceIds = mutableSetOf<String>()
-        val valuesDir = File(resDir, "values")
-        if (valuesDir.exists()) {
-            valuesDir.listFiles()?.filter { it.extension == "xml" }?.forEach { file ->
+        val declaredResources = parseDeclaredValueResources(resDir)
+        if (declaredResources.isEmpty()) return
+
+        val usedResources = mutableSetOf<ResourceKey>()
+        usedResources += collectCodeResourceReferences()
+        usedResources += collectXmlResourceReferences(resDir)
+        usedResources += collectManifestResourceReferences()
+
+        declaredResources
+            .filterNot { it in usedResources }
+            .forEach { unused ->
+                findings.add(
+                    ResourceFinding(
+                        type = ResourceIssueType.UNUSED_RESOURCE,
+                        severity = Severity.LOW,
+                        resourceName = "${unused.type}/${unused.name}",
+                        message = "Potentially unused resource '${unused.type}/${unused.name}' - not found in code or XML references",
+                        location = "res/values/"
+                    )
+                )
+            }
+    }
+
+    private fun parseDeclaredValueResources(resDir: File): Set<ResourceKey> {
+        val declared = mutableSetOf<ResourceKey>()
+        val valuesDirs = resDir.listFiles()?.filter { it.isDirectory && it.name.startsWith("values") } ?: emptyList()
+
+        valuesDirs.forEach { valuesDir ->
+            valuesDir.listFiles()?.filter { it.extension == "xml" }?.forEach valuesFileLoop@{ file ->
                 try {
                     val factory = DocumentBuilderFactory.newInstance()
                     val builder = factory.newDocumentBuilder()
                     val doc = builder.parse(file)
+                    val root = doc.documentElement ?: return@valuesFileLoop
+                    val nodes = root.childNodes
 
-                    val items = doc.getElementsByTagName("item")
-                    for (i in 0 until items.length) {
-                        val item = items.item(i) as Element
-                        val name = item.getAttribute("name")
-                        if (name.isNotEmpty()) {
-                            resourceIds.add(name)
+                    for (i in 0 until nodes.length) {
+                        val node = nodes.item(i)
+                        if (node !is Element) continue
+
+                        val name = node.getAttribute("name")?.trim().orEmpty()
+                        if (name.isEmpty()) continue
+
+                        val type = when (node.tagName) {
+                            "item" -> node.getAttribute("type")?.trim().orEmpty()
+                            else -> node.tagName
+                        }
+
+                        if (type.isNotEmpty()) {
+                            declared.add(ResourceKey(type = type, name = name))
                         }
                     }
-
-                    val colorItems = doc.getElementsByTagName("color")
-                    for (i in 0 until colorItems.length) {
-                        val item = colorItems.item(i) as Element
-                        val name = item.getAttribute("name")
-                        if (name.isNotEmpty()) {
-                            resourceIds.add(name)
-                        }
-                    }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Skip files that can't be parsed
                 }
             }
         }
 
+        return declared
+    }
+
+    private fun applySuppressions() {
+        val baselineEntries = FindingFilterSupport.loadBaseline(project, extension.get())
+        val filtered = findings.filterNot { finding ->
+            FindingFilterSupport.isSuppressed(
+                ruleId = finding.type.name,
+                fingerprint = FindingFilterSupport.sha256("${finding.type}:${finding.resourceName}:${finding.location}"),
+                extension = extension.get(),
+                baselineEntries = baselineEntries
+            )
+        }
+
+        findings.clear()
+        findings.addAll(filtered)
+    }
+
+    private fun collectCodeResourceReferences(): Set<ResourceKey> {
+        val refs = mutableSetOf<ResourceKey>()
         val sourceFiles = project.fileTree("src/main") {
             include("**/*.java")
             include("**/*.kt")
         }
 
-        val usedResources = mutableSetOf<String>()
+        val rRefPattern = Regex("""R\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)""")
+
         sourceFiles.forEach { file ->
             try {
                 val content = file.readText()
-                resourceIds.forEach { id ->
-                    if (content.contains("R.") && content.contains(id)) {
-                        usedResources.add(id)
-                    }
+                rRefPattern.findAll(content).forEach { match ->
+                    refs.add(ResourceKey(type = match.groupValues[1], name = match.groupValues[2]))
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Skip files that can't be read
             }
         }
 
-        resourceIds.filterNot { it in usedResources }.forEach { unused ->
-            findings.add(
-                ResourceFinding(
-                    type = ResourceIssueType.UNUSED_RESOURCE,
-                    severity = Severity.LOW,
-                    resourceName = unused,
-                    message = "Potentially unused resource '$unused' - not found in source code",
-                    location = "res/values/"
-                )
-            )
+        return refs
+    }
+
+    private fun collectXmlResourceReferences(resDir: File): Set<ResourceKey> {
+        val refs = mutableSetOf<ResourceKey>()
+        val xmlFiles = project.fileTree(resDir) { include("**/*.xml") }
+
+        val refPattern = Regex("""@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)""")
+
+        xmlFiles.forEach { file ->
+            try {
+                val content = file.readText()
+                refPattern.findAll(content).forEach { match ->
+                    val type = match.groupValues[1]
+                    val name = match.groupValues[2]
+                    if (!type.startsWith("+")) {
+                        refs.add(ResourceKey(type = type, name = name))
+                    }
+                }
+            } catch (_: Exception) {
+                // Skip files that can't be read
+            }
         }
+
+        return refs
+    }
+
+    private fun collectManifestResourceReferences(): Set<ResourceKey> {
+        val manifestFile = project.file("src/main/AndroidManifest.xml")
+        if (!manifestFile.exists()) return emptySet()
+
+        val refs = mutableSetOf<ResourceKey>()
+        val refPattern = Regex("""@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)""")
+
+        try {
+            val content = manifestFile.readText()
+            refPattern.findAll(content).forEach { match ->
+                val type = match.groupValues[1]
+                val name = match.groupValues[2]
+                if (!type.startsWith("+")) {
+                    refs.add(ResourceKey(type = type, name = name))
+                }
+            }
+        } catch (_: Exception) {
+            // Skip file if unreadable
+        }
+
+        return refs
     }
 
     private fun checkDuplicateStrings() {

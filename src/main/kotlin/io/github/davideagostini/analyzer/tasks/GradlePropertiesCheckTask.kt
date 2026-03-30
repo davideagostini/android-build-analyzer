@@ -44,7 +44,23 @@ open class GradlePropertiesCheckTask : DefaultTask() {
         findings.clear()
         if (!extension.get().enabled) return
         checkGradleProperties()
+        applySuppressions()
         logFindings()
+    }
+
+    private fun applySuppressions() {
+        val baselineEntries = FindingFilterSupport.loadBaseline(project, extension.get())
+        val filtered = findings.filterNot { finding ->
+            FindingFilterSupport.isSuppressed(
+                ruleId = finding.type.name,
+                fingerprint = FindingFilterSupport.sha256("${finding.type}:${finding.suggestedFix}"),
+                extension = extension.get(),
+                baselineEntries = baselineEntries
+            )
+        }
+
+        findings.clear()
+        findings.addAll(filtered)
     }
 
     private fun checkGradleProperties() {

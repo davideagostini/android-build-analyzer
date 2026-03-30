@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.davideagostini"
-version = "1.0.1"
+version = "1.1.0"
 
 repositories {
     google()
@@ -17,7 +17,9 @@ dependencies {
     implementation("com.android.tools.build:gradle:8.2.2")
     implementation(gradleApi())
     implementation(localGroovy())
+    testImplementation(gradleTestKit())
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.0")
 }
 
 java {
@@ -33,6 +35,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 tasks.withType<ProcessResources>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

@@ -150,6 +150,7 @@ open class SecurityCheckTask : DefaultTask() {
         // Run all security checks
         checkBuildConfig()    // Check build.gradle configuration
         checkManifest()       // Check AndroidManifest.xml
+        applySuppressions()
         logFindings()         // Output results
     }
 
@@ -214,12 +215,12 @@ open class SecurityCheckTask : DefaultTask() {
 
             // Check application ID for debug/test patterns
             androidExtension.defaultConfig.applicationId?.let { appId ->
-                if (appId.contains(".debug") || appId.contains(".test")) {
+                if (shouldFlagApplicationId(appId)) {
                     findings.add(
                         SecurityFinding(
                             type = SecurityIssueType.DEBUG_APP_ID,
                             severity = Severity.MEDIUM,
-                            message = "Application ID contains '.debug' or '.test', which may indicate a debug build configuration in production.",
+                            message = "Application ID appears to target a non-production flavor (debug/test).",
                             location = "build.gradle (defaultConfig.applicationId)",
                             buildType = "all"
                         )
@@ -230,6 +231,29 @@ open class SecurityCheckTask : DefaultTask() {
         } catch (e: Exception) {
             logger.warn("Could not analyze build config: ${e.message}")
         }
+    }
+
+    private fun applySuppressions() {
+        val baselineEntries = FindingFilterSupport.loadBaseline(project, extension.get())
+        val filtered = findings.filterNot { finding ->
+            FindingFilterSupport.isSuppressed(
+                ruleId = finding.type.name,
+                fingerprint = FindingFilterSupport.sha256("${finding.type}:${finding.location}:${finding.message}"),
+                extension = extension.get(),
+                baselineEntries = baselineEntries
+            )
+        }
+
+        findings.clear()
+        findings.addAll(filtered)
+    }
+
+    private fun isSuspiciousApplicationId(appId: String): Boolean {
+        return isSuspiciousAppId(appId)
+    }
+
+    private fun shouldFlagApplicationId(appId: String): Boolean {
+        return shouldFlagApplicationId(appId, extension.get().applicationIdAllowlistPrefixes)
     }
 
     // ====================================================================
@@ -306,34 +330,9 @@ open class SecurityCheckTask : DefaultTask() {
                 )
             }
 
-            // Check for exported components without permission protection
-            // Pattern to find android:exported="true"
-            val exportedPattern = "android:exported=\"true\"".toRegex()
-            // Pattern to find android:permission attribute
-            val permissionPattern = "android:permission=".toRegex()
-
-            // Iterate through all exported components
-            exportedPattern.findAll(content).forEach { _ ->
-                // Find the component tag containing the exported attribute
-                val lineEnd = content.indexOf(">", exportedPattern.find(content)?.range?.first ?: 0)
-                if (lineEnd != -1) {
-                    val lineStart = content.lastIndexOf('<', lineEnd)
-                    val line = content.substring(lineStart, lineEnd + 1)
-
-                    // If no permission is set, add a finding
-                    if (!permissionPattern.containsMatchIn(line)) {
-                        findings.add(
-                            SecurityFinding(
-                                type = SecurityIssueType.EXPORTED_COMPONENT,
-                                severity = Severity.LOW,
-                                message = "Component is exported but has no permission set.",
-                                location = "AndroidManifest.xml",
-                                buildType = "all"
-                            )
-                        )
-                    }
-                }
-            }
+            // Generic exported-component check only for activities.
+            // Service/receiver/provider are handled by dedicated checks to avoid duplicates.
+            checkExportedActivities(content)
 
             // ================================================================
             // Advanced Security Analysis
@@ -396,29 +395,80 @@ open class SecurityCheckTask : DefaultTask() {
         // ================================================================
         // Check for undefined custom permissions
         // ================================================================
-        // Find all permission declarations in the manifest
-        val permissionDeclarations = Regex("""<permission[^>]*android:name="([^"]+)"""").findAll(content)
-        val declaredPermissions = permissionDeclarations.map { it.groupValues[1] }.toSet()
+        findUndeclaredCustomPermissions(content).forEach { permName ->
+            findings.add(
+                SecurityFinding(
+                    type = SecurityIssueType.PERMISSION_NOT_DEFINED,
+                    severity = Severity.MEDIUM,
+                    message = "Uses custom permission '$permName' that is not declared in manifest",
+                    location = "AndroidManifest.xml (uses-permission)",
+                    buildType = "all"
+                )
+            )
+        }
+    }
 
-        // Find all uses-permission declarations
-        val usesPermissions = Regex("""android:name="android\.permission\.([^"]+)"""").findAll(content)
-        usesPermissions.forEach { match ->
-            val permName = "android.permission.${match.groupValues[1]}"
-            // Check if the permission is not a system permission and not declared
-            if (permName !in declaredPermissions && !permName.startsWith("android.permission.COMPANION_")) {
-                // Only warn for custom permissions, not standard Android permissions
-                if (!permName.startsWith("android.permission.")) {
-                    findings.add(
-                        SecurityFinding(
-                            type = SecurityIssueType.PERMISSION_NOT_DEFINED,
-                            severity = Severity.MEDIUM,
-                            message = "Uses permission '$permName' that is not explicitly declared",
-                            location = "AndroidManifest.xml (uses-permission)",
-                            buildType = "all"
-                        )
-                    )
+    private fun checkExportedActivities(content: String) {
+        findExportedActivitiesWithoutPermission(content).forEach { componentName ->
+            findings.add(
+                SecurityFinding(
+                    type = SecurityIssueType.EXPORTED_COMPONENT,
+                    severity = Severity.LOW,
+                    message = "Exported activity '$componentName' has no permission set.",
+                    location = "AndroidManifest.xml ($componentName)",
+                    buildType = "all"
+                )
+            )
+        }
+    }
+
+    companion object {
+        internal fun isSuspiciousAppId(appId: String): Boolean {
+            val segments = appId.lowercase().split('.').filter { it.isNotBlank() }
+            if (segments.isEmpty()) return false
+
+            val suspiciousSegments = setOf("debug", "test")
+            return segments.any { it in suspiciousSegments }
+        }
+
+        internal fun shouldFlagApplicationId(appId: String, allowlistPrefixes: List<String>): Boolean {
+            return isSuspiciousAppId(appId) &&
+                allowlistPrefixes.none { prefix -> appId.startsWith(prefix) }
+        }
+
+        internal fun findUndeclaredCustomPermissions(content: String): Set<String> {
+            val permissionDeclarations = Regex("""<permission[^>]*android:name="([^"]+)"""").findAll(content)
+            val declaredPermissions = permissionDeclarations.map { it.groupValues[1] }.toSet()
+            val manifestPackage = Regex("""<manifest[^>]*\spackage="([^"]+)"""").find(content)?.groupValues?.getOrNull(1)
+                ?: return emptySet()
+
+            val usedPermissions = Regex("""<uses-permission(?:-sdk-23)?[^>]*android:name="([^"]+)"""")
+                .findAll(content)
+                .map { it.groupValues[1] }
+                .toSet()
+
+            return usedPermissions.filter { permName ->
+                !permName.startsWith("android.permission.") &&
+                    permName.startsWith("$manifestPackage.") &&
+                    permName !in declaredPermissions
+            }.toSet()
+        }
+
+        internal fun findExportedActivitiesWithoutPermission(content: String): List<String> {
+            val activityPattern = """<activity[^>]*android:exported="true"[^>]*>""".toRegex()
+            return activityPattern.findAll(content).mapNotNull { match ->
+                val activityContent = match.value
+                if (activityContent.contains("android:permission=")) {
+                    null
+                } else {
+                    val nameMatch = Regex("""android:name="([^"]+)"""").find(activityContent)
+                    nameMatch?.groupValues?.get(1) ?: "Unknown Activity"
                 }
-            }
+            }.toList()
+        }
+
+        internal fun suggestHttpsUrl(url: String): String {
+            return url.replaceFirst(Regex("""^(?:http://)+"""), "https://")
         }
     }
 
@@ -647,7 +697,7 @@ open class SecurityCheckTask : DefaultTask() {
                             val url = match.value
                             // Flag insecure HTTP URLs (not HTTPS)
                             if (url.startsWith("http://")) {
-                                val secureUrl = url.replace("http://", "https://")
+                                val secureUrl = suggestHttpsUrl(url)
                                 findings.add(
                                     SecurityFinding(
                                         type = SecurityIssueType.INSECURE_HTTP_URL,

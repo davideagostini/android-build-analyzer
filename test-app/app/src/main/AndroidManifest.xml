@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.testapp">
 
     <!-- Dangerous permissions for testing -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -9,6 +10,8 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <!-- Custom permission intentionally not declared for analyzer regression testing -->
+    <uses-permission android:name="com.example.testapp.permission.SYNC" />
 
     <application
         android:allowBackup="true"
@@ -31,6 +34,13 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <!-- Exported activity with explicit permission should not trigger generic exported warning -->
+        <activity
+            android:name=".ProtectedActivity"
+            android:exported="true"
+            android:permission="com.example.testapp.permission.COMPONENT"
+            android:label="@string/app_name" />
 
         <!-- Exported Service without permission -->
         <service

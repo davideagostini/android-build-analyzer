@@ -1,6 +1,46 @@
 # Android Build Analyzer Plugin
 
-A Gradle plugin for Android security and performance analysis. This plugin provides automated checks for API key exposure, APK composition analysis, security vulnerabilities detection, and resource optimization.
+A Gradle plugin for Android build hygiene and reporting. It provides fast automated checks for API key exposure, APK composition, security misconfigurations, dependency freshness, and resource optimization.
+
+## Release Notes (v1.1.0)
+
+v1.1.0 is the trust-and-correctness release for the current roadmap.
+
+Highlights:
+- Reduced `DEBUG_APP_ID` false positives and added `applicationIdAllowlistPrefixes`
+- Removed duplicate exported-component findings
+- Fixed custom permission undefined detection
+- Added baseline generation with `generateAnalysisBaseline`
+- Added global suppressions with `suppressedRuleIds`
+- Expanded dependency checks for BOMs and version catalogs
+- Improved unused resource detection across code, XML, and manifest references
+- Added Gradle TestKit functional coverage and targeted regression tests
+
+Positioning:
+- Use the plugin as a fast Android build hygiene and reporting layer
+- Pair it with Android Lint, dependency scanners, and dedicated security tooling
+- Do not position it as a full SAST replacement
+
+## Implementation Status (v1.1)
+
+Implemented in current branch:
+- Security signal-quality fixes for app ID detection, exported-component deduping, and custom permission undefined detection
+- `applicationIdAllowlistPrefixes` support for sample/dev namespaces
+- Lazy task registration (`tasks.register`) in plugin wiring
+- Report task incremental input fingerprints
+- Global suppressions with `suppressedRuleIds`
+- Baseline generation and filtering with `generateAnalysisBaseline` and `baselineFilePath`
+- Dependency parsing for BOMs and version catalogs from `gradle/libs.versions.toml`
+- Improved unused resource detection across code, XML, and manifest references
+- Gradle TestKit functional tests for report generation and baseline behavior
+- Regression tests for new security rules
+
+Still important to keep in mind:
+- The plugin is a heuristic analyzer, not a full SAST engine
+- `analyzeApk` requires an existing APK artifact, but now runs after `assembleDebug`/`assembleRelease` when invoked in the same Gradle command
+- Dependency checks depend on Maven metadata availability
+
+See `docs/ROADMAP_v1.1.md` for detailed milestone tracking.
 
 ## Features
 
@@ -108,16 +148,19 @@ Each finding includes specific code snippets to fix the issue:
 Optimizes your app's resources to reduce APK size.
 
 **Checks:**
-- **Unused Resources**: Finds resources not referenced in code
+- **Unused Resources**: Finds value resources not referenced in code, XML resources, or manifest
 - **Duplicate Strings**: Identifies duplicate string values
 - **Oversized Images**: Flags images larger than 1MB
 
 ### 7. Dependency Version Check
-Queries Maven Central to detect outdated `implementation`, `api`, `testImplementation` and `runtimeOnly` dependencies declared with literal versions (variable-based versions like `$kotlinVersion` are skipped).
+Detects outdated dependencies from multiple sources:
+- build script literal coordinates (`implementation`, `api`, `testImplementation`, etc.)
+- BOM coordinates declared with `platform(...)` / `enforcedPlatform(...)`
+- version catalog aliases and accessors (`alias(libs....)`, `libs.okhttp`) resolved from `gradle/libs.versions.toml`
 
 - Network calls use a 5-second timeout and fail gracefully when Maven Central is unreachable
+- Falls back to Google Maven metadata when Maven Central has no result
 - Pre-release versions (`-alpha`, `-beta`, `-RC`) in the latest version are skipped to avoid false positives
-- Only Maven Central is queried — Google Maven (`androidx.*`) dependencies may not be found
 
 ### 8. Gradle Properties Check
 Checks `gradle.properties` for missing Gradle build optimization settings.
@@ -174,7 +217,7 @@ pluginManagement {
 // build.gradle.kts
 plugins {
     id("com.android.application")
-    id("io.github.davideagostini.analyzer") version "1.0.1"
+    id("io.github.davideagostini.analyzer") version "1.1.0"
 }
 ```
 
@@ -218,6 +261,15 @@ androidBuildAnalyzer {
     // Any file whose relative path contains one of these substrings is skipped
     excludePaths = listOf("src/test", "src/androidTest")
 
+    // Allow sample/dev namespaces to skip DEBUG_APP_ID findings
+    applicationIdAllowlistPrefixes = listOf("com.example.")
+
+    // Suppress selected rules globally
+    suppressedRuleIds = listOf("UNUSED_RESOURCE")
+
+    // Optional baseline file with known findings
+    baselineFilePath = "android-build-analyzer-baseline.json"
+
     // Custom API key patterns (optional)
     apiKeyPatterns = listOf(
         "(AKIA|ASIA)[A-Z0-9]{16}",
@@ -238,7 +290,23 @@ This will:
 1. Run all analysis tasks in parallel
 2. Generate HTML report at `build/reports/analyzer/report.html`
 
-> **Note:** `analyzeApk` scans whatever APK already exists in `build/outputs/apk/`. It no longer triggers a full build automatically. Run `./gradlew assembleRelease analyzeApk` if you need a fresh APK analysis.
+> **Note:** `analyzeApk` scans whatever APK already exists in `build/outputs/apk/`. It does not trigger a full build automatically, but if you run `./gradlew assembleRelease analyzeApk` or `./gradlew assembleDebug analyzeApk`, the analysis task now waits for the assemble task in the same invocation.
+
+### Generate a Baseline
+
+```bash
+./gradlew generateAnalysisBaseline
+```
+
+This writes a JSON baseline file that suppresses the current findings on subsequent runs.
+
+### Recommended CI Adoption
+
+1. Run `./gradlew analyze`
+2. Review the highest-signal findings first
+3. Generate a baseline for existing accepted issues
+4. Use `suppressedRuleIds` only for rules that are intentionally noisy or not relevant
+5. Let CI fail only on new critical issues once the baseline is stable
 
 ### Run Individual Tasks
 

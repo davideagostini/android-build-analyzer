@@ -235,46 +235,51 @@ class SecurityCheckTaskTest {
         }
 
         // Check exported components
-        if (manifestContent.contains("<service") && manifestContent.contains("android:exported=\"true\"")) {
-            if (!manifestContent.contains("android:permission=") || !manifestContent.contains("<service") ||
-                manifestContent.substringAfter("<service").substringBefore(">").contains("android:exported=\"true\"") &&
-                !manifestContent.substringAfter("<service").substringBefore(">").contains("android:permission=")) {
+        val serviceMatch = Regex("""<service[^>]*android:exported="true"[^>]*>""").find(manifestContent)
+        if (serviceMatch != null) {
+            val serviceTag = serviceMatch.value
+            if (!serviceTag.contains("android:permission=")) {
+                val componentName = Regex("""android:name="([^"]+)"""").find(serviceTag)?.groupValues?.get(1) ?: "Unknown Service"
                 findings.add(
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_SERVICE,
                         severity = Severity.MEDIUM,
-                        message = "Exported service has no permission protection",
-                        location = "AndroidManifest.xml",
+                        message = "Exported service '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
                 )
             }
         }
 
-        if (manifestContent.contains("<receiver") && manifestContent.contains("android:exported=\"true\"")) {
-            val receiverSection = manifestContent.substringAfter("<receiver").substringBefore("</receiver>")
-            if (!receiverSection.contains("android:permission=")) {
+        val receiverMatch = Regex("""<receiver[^>]*android:exported="true"[^>]*>""").find(manifestContent)
+        if (receiverMatch != null) {
+            val receiverTag = receiverMatch.value
+            if (!receiverTag.contains("android:permission=")) {
+                val componentName = Regex("""android:name="([^"]+)"""").find(receiverTag)?.groupValues?.get(1) ?: "Unknown Receiver"
                 findings.add(
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_RECEIVER,
                         severity = Severity.MEDIUM,
-                        message = "Exported broadcast receiver has no permission protection",
-                        location = "AndroidManifest.xml",
+                        message = "Exported broadcast receiver '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
                 )
             }
         }
 
-        if (manifestContent.contains("<provider") && manifestContent.contains("android:exported=\"true\"")) {
-            val providerSection = manifestContent.substringAfter("<provider").substringBefore("</provider>")
-            if (!providerSection.contains("android:permission=")) {
+        val providerMatch = Regex("""<provider[^>]*android:exported="true"[^>]*>""").find(manifestContent)
+        if (providerMatch != null) {
+            val providerTag = providerMatch.value
+            if (!providerTag.contains("android:permission=")) {
+                val componentName = Regex("""android:name="([^"]+)"""").find(providerTag)?.groupValues?.get(1) ?: "Unknown Provider"
                 findings.add(
                     SecurityFinding(
                         type = SecurityIssueType.EXPORTED_PROVIDER,
                         severity = Severity.HIGH,
-                        message = "Exported content provider has no permission protection",
-                        location = "AndroidManifest.xml",
+                        message = "Exported content provider '$componentName' has no permission protection",
+                        location = "AndroidManifest.xml ($componentName)",
                         buildType = "all"
                     )
                 )

@@ -2,6 +2,7 @@ package io.github.davideagostini.analyzer.tasks
 
 import io.github.davideagostini.analyzer.AndroidBuildAnalyzerExtension
 import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.Internal
@@ -52,6 +53,43 @@ open class ReportGeneratorTask : DefaultTask() {
     @get:Internal
     val dependencyCheckTask: Property<DependencyCheckTask> =
         project.objects.property(DependencyCheckTask::class.java)
+
+    // Explicit inputs derived from upstream task findings keep this task incremental.
+    @get:Input
+    val apiKeyFindingsInput: String
+        get() = apiKeyTask.get().findings.joinToString("|") {
+            "${it.file}:${it.line}:${it.severity}:${it.pattern}:${it.matched}"
+        }
+
+    @get:Input
+    val apkComponentsInput: String
+        get() = apkAnalysisTask.get().apkComponents.joinToString("|") {
+            "${it.name}:${it.size}:${it.percentage}"
+        }
+
+    @get:Input
+    val securityFindingsInput: String
+        get() = securityCheckTask.get().findings.joinToString("|") {
+            "${it.type}:${it.severity}:${it.location}:${it.buildType}:${it.message}"
+        }
+
+    @get:Input
+    val resourceFindingsInput: String
+        get() = resourceAnalysisTask.get().findings.joinToString("|") {
+            "${it.type}:${it.severity}:${it.resourceName}:${it.location}:${it.message}"
+        }
+
+    @get:Input
+    val dependencyFindingsInput: String
+        get() = dependencyCheckTask.get().findings.joinToString("|") {
+            "${it.groupId}:${it.artifactId}:${it.currentVersion}:${it.latestVersion}:${it.severity}"
+        }
+
+    @get:Input
+    val gradlePropertiesFindingsInput: String
+        get() = gradlePropertiesTask.get().findings.joinToString("|") {
+            "${it.type}:${it.severity}:${it.message}:${it.suggestedFix}"
+        }
 
     @TaskAction
     fun generate() {
@@ -268,7 +306,7 @@ open class ReportGeneratorTask : DefaultTask() {
         }
         return htmlSection(
             "Dependency Versions",
-            "<p>Found ${findings.size} outdated dependency/ies (Maven Central only).</p>" +
+            "<p>Found ${findings.size} outdated dependency/ies (Maven Central / Google Maven).</p>" +
             "<table><thead><tr><th>Dependency</th><th>Severity</th><th>Current</th><th>Latest</th></tr></thead>" +
             "<tbody>$rows</tbody></table>"
         )
@@ -318,7 +356,7 @@ open class ReportGeneratorTask : DefaultTask() {
 
         return """{
   "tool": "Android Build Analyzer",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "generatedAt": "${Instant.now()}",
   "summary": {
     "apiKeys": ${apiKeys.size},
@@ -408,7 +446,7 @@ open class ReportGeneratorTask : DefaultTask() {
       "tool": {
         "driver": {
           "name": "Android Build Analyzer",
-          "version": "1.0.1",
+          "version": "1.1.0",
           "informationUri": "https://github.com/davideagostini/android-build-analyzer",
           "rules": [$rulesJson]
         }

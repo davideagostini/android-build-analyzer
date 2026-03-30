@@ -87,6 +87,33 @@ open class AndroidBuildAnalyzerExtension {
     @get:Input
     var excludePaths: List<String> = emptyList()
 
+    /**
+     * Optional applicationId prefixes to ignore for DEBUG_APP_ID detection.
+     *
+     * Example: applicationIdAllowlistPrefixes = listOf("com.example.", "com.company.sandbox.")
+     */
+    @get:Input
+    var applicationIdAllowlistPrefixes: List<String> = emptyList()
+
+    /**
+     * Rule IDs to suppress globally across all analyzer tasks.
+     *
+     * Examples:
+     * - API_KEY_EXPOSURE
+     * - DEBUG_APP_ID
+     * - UNUSED_RESOURCE
+     */
+    @get:Input
+    var suppressedRuleIds: List<String> = emptyList()
+
+    /**
+     * Optional baseline file path. Findings present in the baseline are filtered out.
+     *
+     * Default: "android-build-analyzer-baseline.json" at project root.
+     */
+    @get:Input
+    var baselineFilePath: String = "android-build-analyzer-baseline.json"
+
     companion object {
         /**
          * Default regex patterns for detecting API keys in source code.
