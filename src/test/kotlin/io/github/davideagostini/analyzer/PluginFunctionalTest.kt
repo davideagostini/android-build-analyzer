@@ -161,9 +161,23 @@ class PluginFunctionalTest {
     }
 
     private fun loadSdkDir(): String {
+        val envSdkDir = System.getenv("ANDROID_SDK_ROOT")
+            ?: System.getenv("ANDROID_HOME")
+        if (!envSdkDir.isNullOrBlank()) {
+            return envSdkDir
+        }
+
         val props = Properties()
-        File("local.properties").inputStream().use { props.load(it) }
-        return props.getProperty("sdk.dir")
+        val localProperties = File("local.properties")
+        if (localProperties.exists()) {
+            localProperties.inputStream().use { props.load(it) }
+            val sdkDir = props.getProperty("sdk.dir")
+            if (!sdkDir.isNullOrBlank()) {
+                return sdkDir
+            }
+        }
+
+        error("Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME, or provide sdk.dir in local.properties.")
     }
 
     private fun writeFile(relativePath: String, content: String) {
